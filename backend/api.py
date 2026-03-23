@@ -1,25 +1,18 @@
 """
 api.py — FastAPI Backend for Nyaya-Setu Website
 Nyaya-Setu | Team IKS | SPIT CSE 2025-26
-
-Endpoints:
-  POST /api/analyze          — Upload + analyze document
-  POST /api/qa               — Ask question about analyzed document
-  POST /api/compliance       — IPC→BNS compliance check
-  GET  /api/caselaws         — Search Indian case laws
-  GET  /api/health           — Health check
-
-Run: uvicorn api:app --reload --port 8001
-(WhatsApp bot runs on port 8000, website API on 8001)
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import json, time, uuid
+
+import json, time, uuid, random, string
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from twilio.rest import Client as TwilioClient
+
 from document_analyzer import analyze_document, DocumentRAG, fetch_case_laws
 from lex_validator import (
     compute_compliance_score,
@@ -30,13 +23,17 @@ from modules.m3_evidence.evidence import generate_evidence_certificate
 
 load_dotenv()
 
+# ── Twilio config ─────────────────────────────────────────────────────────────
+TWILIO_SID    = os.getenv("TWILIO_ACCOUNT_SID")
+TWILIO_TOKEN  = os.getenv("TWILIO_AUTH_TOKEN")
+TWILIO_WA_NUM = os.getenv("TWILIO_WHATSAPP_NUMBER", "whatsapp:+14155238886")
+
 app = FastAPI(
     title="Nyaya-Setu API",
     description="AI-Powered Indian Legal Document Analyzer",
     version="1.0.0",
 )
 
-# ── CORS — allow React frontend ────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://localhost:5173", "*"],
@@ -45,19 +42,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── In-memory session store for document RAG ──────────────────────────────────
-# session_id → {analysis, rag, doc_type, created_at}
-doc_sessions: dict = {}
+# ── In-memory stores ──────────────────────────────────────────────────────────
+doc_sessions: dict = {}   # session_id → {analysis, rag, doc_type, created_at}
+otp_store:    dict = {}   # "+91XXXXXXXXXX" → {otp, expires_at, verified, attempts}
+
 
 def cleanup_old_sessions():
-    """Remove sessions older than 1 hour."""
     now = time.time()
     expired = [k for k, v in doc_sessions.items() if now - v["created_at"] > 3600]
     for k in expired:
         del doc_sessions[k]
 
 
-# ── Request/Response models ────────────────────────────────────────────────────
+def normalise_phone(phone: str) -> str:
+    """Normalise to E.164 format, defaulting to India (+91)."""
+    p = phone.strip().replace(" ", "").replace("-", "")
+    if not p.startswith("+"):
+        p = "+91" + p.lstrip("0")
+    return p
+
+
+# ── Request / Response models ─────────────────────────────────────────────────
 class QARequest(BaseModel):
     session_id: str
     question:   str
@@ -69,8 +74,17 @@ class CaseLawRequest(BaseModel):
     query:    str
     doc_type: str = "Legal Document"
 
+class OTPSendRequest(BaseModel):
+    phone: str
 
-# ── ENDPOINTS ─────────────────────────────────────────────────────────────────
+class OTPVerifyRequest(BaseModel):
+    phone: str
+    otp:   str
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ENDPOINTS
+# ══════════════════════════════════════════════════════════════════════════════
 
 @app.get("/api/health")
 def health():
@@ -82,30 +96,19 @@ def health():
     }
 
 
+# ── Document analysis ─────────────────────────────────────────────────────────
 @app.post("/api/analyze")
 async def analyze(file: UploadFile = File(...)):
-    """
-    Upload a PDF or image legal document.
-    Returns full analysis: clauses, risk scores, summary, case laws.
-    """
     cleanup_old_sessions()
-
-    # Validate file type
     allowed = [".pdf", ".jpg", ".jpeg", ".png", ".webp"]
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in allowed:
         raise HTTPException(400, f"File type {ext} not supported. Use: {allowed}")
-
-    # Read file
     file_bytes = await file.read()
-    if len(file_bytes) > 10 * 1024 * 1024:   # 10 MB limit
+    if len(file_bytes) > 10 * 1024 * 1024:
         raise HTTPException(400, "File too large. Maximum size: 10 MB")
-
     try:
-        # Run full analysis (this takes 30-60 seconds for a long document)
         analysis, doc_rag = analyze_document(file_bytes, file.filename)
-
-        # Store session for follow-up Q&A
         session_id = str(uuid.uuid4())
         doc_sessions[session_id] = {
             "analysis":   analysis,
@@ -113,13 +116,9 @@ async def analyze(file: UploadFile = File(...)):
             "doc_type":   analysis.document_type,
             "created_at": time.time(),
         }
-
-        # Serialize to dict
         result = analysis.model_dump()
         result["session_id"] = session_id
-
         return JSONResponse(result)
-
     except ValueError as e:
         raise HTTPException(400, str(e))
     except Exception as e:
@@ -129,27 +128,16 @@ async def analyze(file: UploadFile = File(...)):
 
 @app.post("/api/qa")
 async def question_answer(req: QARequest):
-    """
-    Ask a question about a previously analyzed document.
-    Requires session_id from /api/analyze response.
-    """
     session = doc_sessions.get(req.session_id)
     if not session:
         raise HTTPException(404, "Session not found or expired. Please re-upload the document.")
-
-    rag: DocumentRAG = session["rag"]
-    doc_type: str    = session["doc_type"]
-
-    response = rag.answer(req.question, doc_type)
+    response = session["rag"].answer(req.question, session["doc_type"])
     return JSONResponse(response.model_dump())
 
 
+# ── Compliance ────────────────────────────────────────────────────────────────
 @app.post("/api/compliance")
 async def compliance_check(req: ComplianceRequest):
-    """
-    Check IPC→BNS compliance of text.
-    Returns score, grade, and migration mappings.
-    """
     result  = compute_compliance_score(req.text)
     message = generate_migration_message(result)
     return JSONResponse({
@@ -164,9 +152,8 @@ async def compliance_check(req: ComplianceRequest):
 
 @app.post("/api/compliance/upload")
 async def compliance_upload(file: UploadFile = File(...)):
-    """Upload a PDF and get compliance score."""
     file_bytes = await file.read()
-    text       = extract_text_from_pdf_bytes(file_bytes)
+    text = extract_text_from_pdf_bytes(file_bytes)
     if text.startswith("ERROR"):
         raise HTTPException(400, text)
     result  = compute_compliance_score(text)
@@ -180,48 +167,154 @@ async def compliance_upload(file: UploadFile = File(...)):
     })
 
 
+# ── Case laws ─────────────────────────────────────────────────────────────────
 @app.post("/api/caselaws")
 async def get_case_laws(req: CaseLawRequest):
-    """Search Indian Kanoon for relevant case laws."""
     results = fetch_case_laws(req.query, req.doc_type)
     return JSONResponse({"results": results})
 
 
+# ── OTP: Send via WhatsApp ────────────────────────────────────────────────────
+@app.post("/api/otp/send")
+async def send_otp(req: OTPSendRequest):
+    """Send a 6-digit OTP to the complainant's phone via Twilio WhatsApp."""
+    phone = normalise_phone(req.phone)
+
+    # Rate limit: don't resend within 60 seconds
+    existing = otp_store.get(phone)
+    if existing and time.time() < existing.get("expires_at", 0) - 540:
+        raise HTTPException(429, "OTP already sent. Please wait 60 seconds before requesting again.")
+
+    otp = "".join(random.choices(string.digits, k=6))
+    otp_store[phone] = {
+        "otp":        otp,
+        "expires_at": time.time() + 600,  # 10 minutes
+        "verified":   False,
+        "attempts":   0,
+    }
+
+    try:
+        client = TwilioClient(TWILIO_SID, TWILIO_TOKEN)
+        client.messages.create(
+            from_=TWILIO_WA_NUM,
+            to=f"whatsapp:{phone}",
+            body=(
+                f"🔐 *NyayaSetu — Phone Verification*\n\n"
+                f"Your OTP for Evidence Certificate generation is:\n\n"
+                f"*{otp}*\n\n"
+                f"This OTP is valid for *10 minutes*.\n"
+                f"Do not share this with anyone.\n\n"
+                f"_NyayaSetu · Bridge to Justice_"
+            ),
+        )
+        print(f"[OTP] Sent to {phone}")
+        return JSONResponse({
+            "success": True,
+            "message": f"OTP sent to WhatsApp {phone}",
+            "expires_in": 600,
+        })
+    except Exception as e:
+        otp_store.pop(phone, None)
+        print(f"[OTP ERROR] {e}")
+        raise HTTPException(500, f"Failed to send OTP via WhatsApp: {str(e)}")
+
+
+# ── OTP: Verify ───────────────────────────────────────────────────────────────
+@app.post("/api/otp/verify")
+async def verify_otp(req: OTPVerifyRequest):
+    """Verify the OTP entered by the user."""
+    phone = normalise_phone(req.phone)
+    record = otp_store.get(phone)
+
+    if not record:
+        raise HTTPException(400, "No OTP found for this number. Please request a new one.")
+
+    if time.time() > record["expires_at"]:
+        otp_store.pop(phone, None)
+        raise HTTPException(400, "OTP has expired. Please request a new one.")
+
+    record["attempts"] += 1
+    if record["attempts"] > 5:
+        otp_store.pop(phone, None)
+        raise HTTPException(429, "Too many incorrect attempts. Please request a new OTP.")
+
+    if req.otp.strip() != record["otp"]:
+        remaining = 5 - record["attempts"]
+        raise HTTPException(400, f"Incorrect OTP. {remaining} attempt(s) remaining.")
+
+    record["verified"] = True
+    print(f"[OTP] Verified: {phone}")
+    return JSONResponse({"success": True, "verified": True, "phone": phone})
+
+
+# ── Evidence certificate ──────────────────────────────────────────────────────
 @app.post("/api/evidence")
 async def evidence_certificate(
-    file:             UploadFile = File(...),
-    complainant_name: str        = Form("Unknown"),
-    incident_brief:   str        = Form("Evidence submitted via Nyaya-Setu"),
+    file:                UploadFile = File(...),
+    complainant_name:    str = Form(default="Not provided"),
+    complainant_phone:   str = Form(default=""),
+    complainant_address: str = Form(default=""),
+    incident_brief:      str = Form(default="Evidence submitted via NyayaSetu"),
+    incident_date:       str = Form(default=""),
+    police_station:      str = Form(default=""),
 ):
     """
     Generate BSA Section 63 SHA-256 evidence certificate.
-    Returns certificate data + PDF download URL.
+    Phone number must be OTP-verified before calling this endpoint.
     """
+    # ── Verify phone was OTP-verified if provided ─────────────────────────────
+    if complainant_phone:
+        phone = normalise_phone(complainant_phone)
+        record = otp_store.get(phone)
+        if not record or not record.get("verified"):
+            raise HTTPException(403, "Phone number not verified. Please complete OTP verification.")
+
     file_bytes = await file.read()
 
-    cert, pdf_bytes = generate_evidence_certificate(
-        file_bytes=file_bytes,
-        file_name=file.filename,
-        complainant_name=complainant_name,
-        incident_brief=incident_brief,
-    )
+    try:
+        cert, pdf_bytes = generate_evidence_certificate(
+            file_bytes          = file_bytes,
+            file_name           = file.filename,
+            complainant_name    = complainant_name,
+            complainant_phone   = complainant_phone,
+            complainant_address = complainant_address,
+            incident_brief      = incident_brief,
+            incident_date       = incident_date,
+            police_station      = police_station,
+        )
+    except Exception as e:
+        print(f"[EVIDENCE ERROR] {e}")
+        raise HTTPException(500, f"Certificate generation failed: {str(e)}")
 
     # Save PDF
     os.makedirs("temp_media", exist_ok=True)
-    pdf_name = f"Certificate_NS-{cert.certificate_id}.pdf"
+    pdf_name = f"BSA_Certificate_NS-{cert.certificate_id}.pdf"
     pdf_path = os.path.join("temp_media", pdf_name)
     with open(pdf_path, "wb") as f:
         f.write(pdf_bytes)
+
+    # Clear OTP after successful certificate generation
+    if complainant_phone:
+        otp_store.pop(normalise_phone(complainant_phone), None)
 
     return JSONResponse({
         "certificate_id":          cert.certificate_id,
         "sha256_hash":             cert.sha256_hash,
         "file_name":               cert.file_name,
         "file_size_bytes":         cert.file_size_bytes,
+        "complainant_name":        cert.complainant_name,
+        "complainant_phone":       cert.complainant_phone,
+        "complainant_address":     cert.complainant_address,
+        "incident_brief":          cert.incident_brief,
+        "incident_date":           cert.incident_date,
+        "police_station":          cert.police_station,
         "capture_timestamp":       cert.capture_timestamp,
+        "certification_timestamp": cert.certification_timestamp,
         "device_make":             cert.device_make,
         "device_model":            cert.device_model,
         "gps_coordinates":         cert.gps_coordinates,
+        "image_width":             cert.image_width,
+        "image_height":            cert.image_height,
         "verification_status":     cert.verification_status,
         "bsa_section":             cert.bsa_section,
         "pdf_download_url":        f"/api/media/{pdf_name}",
@@ -238,7 +331,6 @@ def serve_media(filename: str):
 
 @app.get("/api/sessions")
 def list_sessions():
-    """Dev endpoint — list active sessions."""
     return {
         "count": len(doc_sessions),
         "sessions": [

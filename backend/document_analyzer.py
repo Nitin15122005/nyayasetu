@@ -441,12 +441,29 @@ def analyze_document(
 
     # Step 9: Case law retrieval
     # Build query from risky clauses
-    risky_text = " ".join(
-        c.clause_text for c in analyzed
-        if c.risk_level in ["High Risk", "Illegal"]
-    )[:300]
-    kanoon_query = risky_text if risky_text else doc_type
-    case_laws    = fetch_case_laws(kanoon_query, doc_type)
+    risky_clauses = [c for c in analyzed if c.risk_level in ["High Risk", "Illegal"]]
+    caution_clauses = [c for c in analyzed if c.risk_level == "Caution"]
+ 
+    # Extract meaningful keywords from risky clause explanations (not raw text)
+    keyword_sources = risky_clauses or caution_clauses
+    keywords = []
+    for c in keyword_sources[:3]:
+        # Use explanation — it's cleaner than raw clause text
+        if c.explanation and len(c.explanation) > 20:
+            # Pull first 80 chars of explanation as keyword context
+            keywords.append(c.explanation[:80])
+ 
+    if keywords:
+        kanoon_query = f"{doc_type} {' '.join(keywords[:2])}"
+    else:
+        # Fallback: doc type only — still gives relevant results
+        kanoon_query = doc_type
+ 
+    # Trim to 200 chars max (IndianKanoon query limit)
+    kanoon_query = kanoon_query[:200]
+    print(f"[ANALYZER] IndianKanoon query: {kanoon_query[:80]}...")
+ 
+    case_laws = fetch_case_laws(kanoon_query, doc_type)
 
     # Step 10: Recommendations
     recommendations = []
