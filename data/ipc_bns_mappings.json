@@ -1,0 +1,962 @@
+{
+  "IPC 2": {
+    "bns": "BNS 5",
+    "name": "Definitions. (Change)",
+    "section_num": "5",
+    "ipc_num": "2"
+  },
+  "IPC 33": {
+    "bns": "BNS 1",
+    "name": "“Act”. “Omission”",
+    "section_num": "1",
+    "ipc_num": "33"
+  },
+  "IPC 47": {
+    "bns": "BNS 2",
+    "name": "“Animal”.",
+    "section_num": "2",
+    "ipc_num": "47"
+  },
+  "IPC 28": {
+    "bns": "BNS 4",
+    "name": "“Counterfeit”.",
+    "section_num": "4",
+    "ipc_num": "28"
+  },
+  "IPC 20": {
+    "bns": "BNS 5",
+    "name": "“Court of Justice”.",
+    "section_num": "5",
+    "ipc_num": "20"
+  },
+  "IPC 46": {
+    "bns": "BNS 6",
+    "name": "“Death”.",
+    "section_num": "6",
+    "ipc_num": "46"
+  },
+  "IPC 24": {
+    "bns": "BNS 7",
+    "name": "“Dishonestly”.",
+    "section_num": "7",
+    "ipc_num": "24"
+  },
+  "IPC 29": {
+    "bns": "BNS 8",
+    "name": "“Document”.",
+    "section_num": "8",
+    "ipc_num": "29"
+  },
+  "IPC 25": {
+    "bns": "BNS 9",
+    "name": "“Fraudulently”",
+    "section_num": "9",
+    "ipc_num": "25"
+  },
+  "IPC 8": {
+    "bns": "BNS 10",
+    "name": "Gender.",
+    "section_num": "10",
+    "ipc_num": "8"
+  },
+  "IPC 52": {
+    "bns": "BNS 11",
+    "name": "“Good faith”",
+    "section_num": "11",
+    "ipc_num": "52"
+  },
+  "IPC 17": {
+    "bns": "BNS 12",
+    "name": "“Government”.",
+    "section_num": "12",
+    "ipc_num": "17"
+  },
+  "IPC 44": {
+    "bns": "BNS 14",
+    "name": "“Injury”.",
+    "section_num": "14",
+    "ipc_num": "44"
+  },
+  "IPC 43": {
+    "bns": "BNS 15",
+    "name": "“Illegal”. “Legally bound to do”.",
+    "section_num": "15",
+    "ipc_num": "43"
+  },
+  "IPC 19": {
+    "bns": "BNS 16",
+    "name": "“Judge”.",
+    "section_num": "16",
+    "ipc_num": "19"
+  },
+  "IPC 45": {
+    "bns": "BNS 17",
+    "name": "“Life”.",
+    "section_num": "17",
+    "ipc_num": "45"
+  },
+  "IPC 42": {
+    "bns": "BNS 18",
+    "name": "“Local law”.",
+    "section_num": "18",
+    "ipc_num": "42"
+  },
+  "IPC 10": {
+    "bns": "BNS 19",
+    "name": "“Man”. “Woman”.",
+    "section_num": "19",
+    "ipc_num": "10"
+  },
+  "IPC 49": {
+    "bns": "BNS 20",
+    "name": "“Year”. “Month”.",
+    "section_num": "20",
+    "ipc_num": "49"
+  },
+  "IPC 22": {
+    "bns": "BNS 21",
+    "name": "“Movable property”",
+    "section_num": "21",
+    "ipc_num": "22"
+  },
+  "IPC 9": {
+    "bns": "BNS 22",
+    "name": "Number.",
+    "section_num": "22",
+    "ipc_num": "9"
+  },
+  "IPC 51": {
+    "bns": "BNS 23",
+    "name": "“Oath”.",
+    "section_num": "23",
+    "ipc_num": "51"
+  },
+  "IPC 40": {
+    "bns": "BNS 24",
+    "name": "“Offence”.",
+    "section_num": "24",
+    "ipc_num": "40"
+  },
+  "IPC 11": {
+    "bns": "BNS 26",
+    "name": "“Person”.",
+    "section_num": "26",
+    "ipc_num": "11"
+  },
+  "IPC 12": {
+    "bns": "BNS 27",
+    "name": "“Public”.",
+    "section_num": "27",
+    "ipc_num": "12"
+  },
+  "IPC 21": {
+    "bns": "BNS 28",
+    "name": "“Public servant”.",
+    "section_num": "28",
+    "ipc_num": "21"
+  },
+  "IPC 26": {
+    "bns": "BNS 29",
+    "name": "“Reason to believe”",
+    "section_num": "29",
+    "ipc_num": "26"
+  },
+  "IPC 41": {
+    "bns": "BNS 30",
+    "name": "“Special law”.",
+    "section_num": "30",
+    "ipc_num": "41"
+  },
+  "IPC 30": {
+    "bns": "BNS 31",
+    "name": "“Valuable security”.",
+    "section_num": "31",
+    "ipc_num": "30"
+  },
+  "IPC 48": {
+    "bns": "BNS 32",
+    "name": "“Vessel”.",
+    "section_num": "32",
+    "ipc_num": "48"
+  },
+  "IPC 39": {
+    "bns": "BNS 33",
+    "name": "“Voluntarily”.",
+    "section_num": "33",
+    "ipc_num": "39"
+  },
+  "IPC 31": {
+    "bns": "BNS 34",
+    "name": "“A will”.",
+    "section_num": "34",
+    "ipc_num": "31"
+  },
+  "IPC 23": {
+    "bns": "BNS 36",
+    "name": "“Wrongful gain”.",
+    "section_num": "36",
+    "ipc_num": "23"
+  },
+  "IPC 3": {
+    "bns": "BNS 39",
+    "name": "General explanations",
+    "section_num": "39",
+    "ipc_num": "3"
+  },
+  "IPC 53": {
+    "bns": "BNS 4",
+    "name": "Punishments.",
+    "section_num": "4",
+    "ipc_num": "53"
+  },
+  "IPC 57": {
+    "bns": "BNS 6",
+    "name": "Fractions of terms of punishment.",
+    "section_num": "6",
+    "ipc_num": "57"
+  },
+  "IPC 73": {
+    "bns": "BNS 11",
+    "name": "Solitary confinement.",
+    "section_num": "11",
+    "ipc_num": "73"
+  },
+  "IPC 74": {
+    "bns": "BNS 12",
+    "name": "Limit of solitary confinement.",
+    "section_num": "12",
+    "ipc_num": "74"
+  },
+  "IPC 77": {
+    "bns": "BNS 15",
+    "name": "Act of Judge when acting judicially.",
+    "section_num": "15",
+    "ipc_num": "77"
+  },
+  "IPC 80": {
+    "bns": "BNS 18",
+    "name": "Accident in doing a lawful act.",
+    "section_num": "18",
+    "ipc_num": "80"
+  },
+  "IPC 82": {
+    "bns": "BNS 20",
+    "name": "Act of a child under seven years of age.",
+    "section_num": "20",
+    "ipc_num": "82"
+  },
+  "IPC 84": {
+    "bns": "BNS 22",
+    "name": "Act of a person of unsound mind.",
+    "section_num": "22",
+    "ipc_num": "84"
+  },
+  "IPC 93": {
+    "bns": "BNS 31",
+    "name": "Communication made in good faith.",
+    "section_num": "31",
+    "ipc_num": "93"
+  },
+  "IPC 94": {
+    "bns": "BNS 32",
+    "name": "Act to which a person is compelled by threats.",
+    "section_num": "32",
+    "ipc_num": "94"
+  },
+  "IPC 95": {
+    "bns": "BNS 33",
+    "name": "Act causing slight harm.",
+    "section_num": "33",
+    "ipc_num": "95"
+  },
+  "IPC 96": {
+    "bns": "BNS 34",
+    "name": "Things done in private defence.",
+    "section_num": "34",
+    "ipc_num": "96"
+  },
+  "IPC 36": {
+    "bns": "BNS 1860",
+    "name": "Right of private defence against act of a person",
+    "section_num": "1860",
+    "ipc_num": "36"
+  },
+  "IPC 107": {
+    "bns": "BNS 45",
+    "name": "Abetment of a thing.",
+    "section_num": "45",
+    "ipc_num": "107"
+  },
+  "IPC 108": {
+    "bns": "BNS 46",
+    "name": "Abettor.",
+    "section_num": "46",
+    "ipc_num": "108"
+  },
+  "IPC 114": {
+    "bns": "BNS 54",
+    "name": "Abettor present when offence is committed.",
+    "section_num": "54",
+    "ipc_num": "114"
+  },
+  "IPC 375": {
+    "bns": "BNS 63",
+    "name": "Rape.",
+    "section_num": "63",
+    "ipc_num": "375"
+  },
+  "IPC 376": {
+    "bns": "BNS 64",
+    "name": "Punishment for rape.",
+    "section_num": "64",
+    "ipc_num": "376"
+  },
+  "IPC 18": {
+    "bns": "BNS 2",
+    "name": "years) (Change)",
+    "section_num": "2",
+    "ipc_num": "18"
+  },
+  "IPC 72": {
+    "bns": "BNS 377",
+    "name": "Disclosure of identity of victim of certain",
+    "section_num": "377",
+    "ipc_num": "72"
+  },
+  "IPC 312": {
+    "bns": "BNS 88",
+    "name": "Causing miscarriage.",
+    "section_num": "88",
+    "ipc_num": "312"
+  },
+  "IPC 313": {
+    "bns": "BNS 89",
+    "name": "Causing miscarriage without woman's consent.",
+    "section_num": "89",
+    "ipc_num": "313"
+  },
+  "IPC 369": {
+    "bns": "BNS 97",
+    "name": "Kidnapping or abducting child under ten years",
+    "section_num": "97",
+    "ipc_num": "369"
+  },
+  "IPC 372": {
+    "bns": "BNS 98",
+    "name": "Selling minor for purposes of prostitution, etc.",
+    "section_num": "98",
+    "ipc_num": "372"
+  },
+  "IPC 299": {
+    "bns": "BNS 100",
+    "name": "Culpable homicide",
+    "section_num": "100",
+    "ipc_num": "299"
+  },
+  "IPC 300": {
+    "bns": "BNS 101",
+    "name": "Murder.",
+    "section_num": "101",
+    "ipc_num": "300"
+  },
+  "IPC 302": {
+    "bns": "BNS 103",
+    "name": "Punishment for murder.",
+    "section_num": "103",
+    "ipc_num": "302"
+  },
+  "IPC 105": {
+    "bns": "BNS 303",
+    "name": "Punishment for culpable homicide not",
+    "section_num": "303",
+    "ipc_num": "105"
+  },
+  "IPC 109": {
+    "bns": "BNS 306",
+    "name": "Attempt to murder. (Change)",
+    "section_num": "306",
+    "ipc_num": "109"
+  },
+  "IPC 110": {
+    "bns": "BNS 307",
+    "name": "Attempt to commit culpable homicide.",
+    "section_num": "307",
+    "ipc_num": "110"
+  },
+  "IPC 111": {
+    "bns": "BNS 308",
+    "name": "Organised crime",
+    "section_num": "308",
+    "ipc_num": "111"
+  },
+  "IPC 319": {
+    "bns": "BNS 114",
+    "name": "Hurt",
+    "section_num": "114",
+    "ipc_num": "319"
+  },
+  "IPC 116": {
+    "bns": "BNS 323",
+    "name": "Grievous hurt. (Change)",
+    "section_num": "323",
+    "ipc_num": "116"
+  },
+  "IPC 117": {
+    "bns": "BNS 320",
+    "name": "Voluntarily causing grievous hurt. (Change)",
+    "section_num": "320",
+    "ipc_num": "117"
+  },
+  "IPC 127": {
+    "bns": "BNS 341",
+    "name": "Wrongful confinement.",
+    "section_num": "341",
+    "ipc_num": "127"
+  },
+  "IPC 349": {
+    "bns": "BNS 128",
+    "name": "Force",
+    "section_num": "128",
+    "ipc_num": "349"
+  },
+  "IPC 350": {
+    "bns": "BNS 129",
+    "name": "Criminal force",
+    "section_num": "129",
+    "ipc_num": "350"
+  },
+  "IPC 351": {
+    "bns": "BNS 130",
+    "name": "Assault.",
+    "section_num": "130",
+    "ipc_num": "351"
+  },
+  "IPC 138": {
+    "bns": "BNS 363",
+    "name": "Abduction.",
+    "section_num": "363",
+    "ipc_num": "138"
+  },
+  "IPC 139": {
+    "bns": "BNS 362",
+    "name": "Kidnapping or maiming a child for purposes",
+    "section_num": "362",
+    "ipc_num": "139"
+  },
+  "IPC 370": {
+    "bns": "BNS 143",
+    "name": "Trafficking of person.",
+    "section_num": "143",
+    "ipc_num": "370"
+  },
+  "IPC 371": {
+    "bns": "BNS 145",
+    "name": "Habitual dealing in slaves.",
+    "section_num": "145",
+    "ipc_num": "371"
+  },
+  "IPC 374": {
+    "bns": "BNS 146",
+    "name": "Unlawful compulsory labour.",
+    "section_num": "146",
+    "ipc_num": "374"
+  },
+  "IPC 153": {
+    "bns": "BNS 1860",
+    "name": "Waging war against Government of any",
+    "section_num": "1860",
+    "ipc_num": "153"
+  },
+  "IPC 136": {
+    "bns": "BNS 164",
+    "name": "Harbouring deserter.",
+    "section_num": "164",
+    "ipc_num": "136"
+  },
+  "IPC 178": {
+    "bns": "BNS 230",
+    "name": "(",
+    "section_num": "230",
+    "ipc_num": "178"
+  },
+  "IPC 238": {
+    "bns": "BNS 237",
+    "name": "Import or export of counterfeits of the Indian",
+    "section_num": "237",
+    "ipc_num": "238"
+  },
+  "IPC 260": {
+    "bns": "BNS 258",
+    "name": "Using as genuine a Government stamp known to",
+    "section_num": "258",
+    "ipc_num": "260"
+  },
+  "IPC 233": {
+    "bns": "BNS 181",
+    "name": "Making or selling instrument for counterfeiting",
+    "section_num": "181",
+    "ipc_num": "233"
+  },
+  "IPC 189": {
+    "bns": "BNS 189",
+    "name": "(",
+    "section_num": "189",
+    "ipc_num": "189"
+  },
+  "IPC 190": {
+    "bns": "BNS 158",
+    "name": "Every member of unlawful assembly guilty of",
+    "section_num": "158",
+    "ipc_num": "190"
+  },
+  "IPC 191": {
+    "bns": "BNS 191",
+    "name": "(",
+    "section_num": "191",
+    "ipc_num": "191"
+  },
+  "IPC 192": {
+    "bns": "BNS 148",
+    "name": "Wantonly giving provocation with intent to",
+    "section_num": "148",
+    "ipc_num": "192"
+  },
+  "IPC 194": {
+    "bns": "BNS 194",
+    "name": "(",
+    "section_num": "194",
+    "ipc_num": "194"
+  },
+  "IPC 195": {
+    "bns": "BNS 160",
+    "name": "Assaulting or obstructing public servant when",
+    "section_num": "160",
+    "ipc_num": "195"
+  },
+  "IPC 203": {
+    "bns": "BNS 168",
+    "name": "Public servant unlawfully buying or bidding for",
+    "section_num": "168",
+    "ipc_num": "203"
+  },
+  "IPC 170": {
+    "bns": "BNS 204",
+    "name": "Personating a public servant.",
+    "section_num": "204",
+    "ipc_num": "170"
+  },
+  "IPC 207": {
+    "bns": "BNS 1860",
+    "name": "Preventing service of summons or other",
+    "section_num": "1860",
+    "ipc_num": "207"
+  },
+  "IPC 177": {
+    "bns": "BNS 212",
+    "name": "Furnishing false information.",
+    "section_num": "212",
+    "ipc_num": "177"
+  },
+  "IPC 180": {
+    "bns": "BNS 215",
+    "name": "Refusing to sign statement.",
+    "section_num": "215",
+    "ipc_num": "180"
+  },
+  "IPC 193": {
+    "bns": "BNS 229",
+    "name": "Punishment for false evidence.",
+    "section_num": "229",
+    "ipc_num": "193"
+  },
+  "IPC 196": {
+    "bns": "BNS 233",
+    "name": "Using evidence known to be false.",
+    "section_num": "233",
+    "ipc_num": "196"
+  },
+  "IPC 197": {
+    "bns": "BNS 234",
+    "name": "Issuing or signing false certificate",
+    "section_num": "234",
+    "ipc_num": "197"
+  },
+  "IPC 198": {
+    "bns": "BNS 235",
+    "name": "Using as true a certificate known to be false.",
+    "section_num": "235",
+    "ipc_num": "198"
+  },
+  "IPC 208": {
+    "bns": "BNS 245",
+    "name": "Fraudulently suffering decree for sum not due.",
+    "section_num": "245",
+    "ipc_num": "208"
+  },
+  "IPC 209": {
+    "bns": "BNS 246",
+    "name": "Dishonesty making false claim in Court.",
+    "section_num": "246",
+    "ipc_num": "209"
+  },
+  "IPC 248": {
+    "bns": "BNS 210",
+    "name": "False charge of offence made with intent to",
+    "section_num": "210",
+    "ipc_num": "248"
+  },
+  "IPC 212": {
+    "bns": "BNS 249",
+    "name": "Harbouring offender.",
+    "section_num": "249",
+    "ipc_num": "212"
+  },
+  "IPC 257": {
+    "bns": "BNS 1860",
+    "name": "Public servant in judicial proceeding corruptly",
+    "section_num": "1860",
+    "ipc_num": "257"
+  },
+  "IPC 229": {
+    "bns": "BNS 268",
+    "name": "Personation of a juror or assessor.",
+    "section_num": "268",
+    "ipc_num": "229"
+  },
+  "IPC 268": {
+    "bns": "BNS 270",
+    "name": "Public nuisance.",
+    "section_num": "270",
+    "ipc_num": "268"
+  },
+  "IPC 271": {
+    "bns": "BNS 273",
+    "name": "Disobedience to quarantine rule.",
+    "section_num": "273",
+    "ipc_num": "271"
+  },
+  "IPC 275": {
+    "bns": "BNS 272",
+    "name": "Sale of noxious food or drink. (Change)",
+    "section_num": "272",
+    "ipc_num": "275"
+  },
+  "IPC 276": {
+    "bns": "BNS 273",
+    "name": "Adulteration of drugs. (Change)",
+    "section_num": "273",
+    "ipc_num": "276"
+  },
+  "IPC 277": {
+    "bns": "BNS 1860",
+    "name": "Sale of adulterated drugs. (Change)",
+    "section_num": "1860",
+    "ipc_num": "277"
+  },
+  "IPC 278": {
+    "bns": "BNS 275",
+    "name": "Sale of drug as a different drug or",
+    "section_num": "275",
+    "ipc_num": "278"
+  },
+  "IPC 279": {
+    "bns": "BNS 276",
+    "name": "Fouling water of public spring or reservoir.",
+    "section_num": "276",
+    "ipc_num": "279"
+  },
+  "IPC 280": {
+    "bns": "BNS 277",
+    "name": "Making atmosphere noxious to health.",
+    "section_num": "277",
+    "ipc_num": "280"
+  },
+  "IPC 281": {
+    "bns": "BNS 278",
+    "name": "Rash driving or riding on a public way.",
+    "section_num": "278",
+    "ipc_num": "281"
+  },
+  "IPC 282": {
+    "bns": "BNS 279",
+    "name": "Rash navigation of vessel. (Change)",
+    "section_num": "279",
+    "ipc_num": "282"
+  },
+  "IPC 283": {
+    "bns": "BNS 280",
+    "name": "Exhibition of false light, mark or buoy.",
+    "section_num": "280",
+    "ipc_num": "283"
+  },
+  "IPC 284": {
+    "bns": "BNS 281",
+    "name": "Conveying person by water for hire in unsafe",
+    "section_num": "281",
+    "ipc_num": "284"
+  },
+  "IPC 290": {
+    "bns": "BNS 287",
+    "name": "Negligent conduct with respect to pulling",
+    "section_num": "287",
+    "ipc_num": "290"
+  },
+  "IPC 292": {
+    "bns": "BNS 289",
+    "name": "Punishment for public nuisance in cases not",
+    "section_num": "289",
+    "ipc_num": "292"
+  },
+  "IPC 293": {
+    "bns": "BNS 295",
+    "name": "Sale, etc., of obscene objects to young person.",
+    "section_num": "295",
+    "ipc_num": "293"
+  },
+  "IPC 294": {
+    "bns": "BNS 296",
+    "name": "Obscene acts and songs",
+    "section_num": "296",
+    "ipc_num": "294"
+  },
+  "IPC 296": {
+    "bns": "BNS 300",
+    "name": "Disturbing religious assembly.",
+    "section_num": "300",
+    "ipc_num": "296"
+  },
+  "IPC 297": {
+    "bns": "BNS 301",
+    "name": "Trespassing on burial places, etc.",
+    "section_num": "301",
+    "ipc_num": "297"
+  },
+  "IPC 378": {
+    "bns": "BNS 303",
+    "name": "Theft.",
+    "section_num": "303",
+    "ipc_num": "378"
+  },
+  "IPC 303": {
+    "bns": "BNS 1860",
+    "name": "(",
+    "section_num": "1860",
+    "ipc_num": "303"
+  },
+  "IPC 379": {
+    "bns": "BNS 2",
+    "name": "Punishment for theft.",
+    "section_num": "2",
+    "ipc_num": "379"
+  },
+  "IPC 306": {
+    "bns": "BNS 380",
+    "name": "Theft by clerk or servant of property in",
+    "section_num": "380",
+    "ipc_num": "306"
+  },
+  "IPC 308": {
+    "bns": "BNS 308",
+    "name": "(",
+    "section_num": "308",
+    "ipc_num": "308"
+  },
+  "IPC 309": {
+    "bns": "BNS 309",
+    "name": "(",
+    "section_num": "309",
+    "ipc_num": "309"
+  },
+  "IPC 310": {
+    "bns": "BNS 394",
+    "name": "Dacoity (Change)",
+    "section_num": "394",
+    "ipc_num": "310"
+  },
+  "IPC 311": {
+    "bns": "BNS 400",
+    "name": "Robbery, or dacoity, with attempt to cause",
+    "section_num": "400",
+    "ipc_num": "311"
+  },
+  "IPC 315": {
+    "bns": "BNS 403",
+    "name": "Dishonest misappropriation of property",
+    "section_num": "403",
+    "ipc_num": "315"
+  },
+  "IPC 316": {
+    "bns": "BNS 1860",
+    "name": "Criminal breach of trust. (Change)",
+    "section_num": "1860",
+    "ipc_num": "316"
+  },
+  "IPC 317": {
+    "bns": "BNS 317",
+    "name": "(",
+    "section_num": "317",
+    "ipc_num": "317"
+  },
+  "IPC 318": {
+    "bns": "BNS 318",
+    "name": "(",
+    "section_num": "318",
+    "ipc_num": "318"
+  },
+  "IPC 324": {
+    "bns": "BNS 324",
+    "name": "(",
+    "section_num": "324",
+    "ipc_num": "324"
+  },
+  "IPC 429": {
+    "bns": "BNS 1860",
+    "name": "Mischief by killing or maiming cattle, etc., of any",
+    "section_num": "1860",
+    "ipc_num": "429"
+  },
+  "IPC 430": {
+    "bns": "BNS 326",
+    "name": "Mischief by injury to works of irrigation or by",
+    "section_num": "326",
+    "ipc_num": "430"
+  },
+  "IPC 432": {
+    "bns": "BNS 326",
+    "name": "Mischief by causing inundation or obstruction to",
+    "section_num": "326",
+    "ipc_num": "432"
+  },
+  "IPC 434": {
+    "bns": "BNS 326",
+    "name": "Mischief by destroying or moving, etc., a land-",
+    "section_num": "326",
+    "ipc_num": "434"
+  },
+  "IPC 435": {
+    "bns": "BNS 326",
+    "name": "Mischief by fire or explosive substance with",
+    "section_num": "326",
+    "ipc_num": "435"
+  },
+  "IPC 436": {
+    "bns": "BNS 326",
+    "name": "Mischief by fire or explosive substance with",
+    "section_num": "326",
+    "ipc_num": "436"
+  },
+  "IPC 329": {
+    "bns": "BNS 441",
+    "name": "(",
+    "section_num": "441",
+    "ipc_num": "329"
+  },
+  "IPC 330": {
+    "bns": "BNS 448",
+    "name": "House-trespass and house-breaking.",
+    "section_num": "448",
+    "ipc_num": "330"
+  },
+  "IPC 331": {
+    "bns": "BNS 446",
+    "name": "Punishment for house-trespass or house-",
+    "section_num": "446",
+    "ipc_num": "331"
+  },
+  "IPC 332": {
+    "bns": "BNS 332",
+    "name": "(a)",
+    "section_num": "332",
+    "ipc_num": "332"
+  },
+  "IPC 450": {
+    "bns": "BNS 332",
+    "name": "House-trespass in order to commit offence",
+    "section_num": "332",
+    "ipc_num": "450"
+  },
+  "IPC 451": {
+    "bns": "BNS 332",
+    "name": "House-trespass in order to commit offence",
+    "section_num": "332",
+    "ipc_num": "451"
+  },
+  "IPC 464": {
+    "bns": "BNS 335",
+    "name": "Making a false document.",
+    "section_num": "335",
+    "ipc_num": "464"
+  },
+  "IPC 336": {
+    "bns": "BNS 336",
+    "name": "(",
+    "section_num": "336",
+    "ipc_num": "336"
+  },
+  "IPC 337": {
+    "bns": "BNS 469",
+    "name": "Forgery of record of Court or of public register,",
+    "section_num": "469",
+    "ipc_num": "337"
+  },
+  "IPC 467": {
+    "bns": "BNS 338",
+    "name": "Forgery of valuable security, will, etc.",
+    "section_num": "338",
+    "ipc_num": "467"
+  },
+  "IPC 340": {
+    "bns": "BNS 470",
+    "name": "(",
+    "section_num": "470",
+    "ipc_num": "340"
+  },
+  "IPC 341": {
+    "bns": "BNS 1860",
+    "name": "(",
+    "section_num": "1860",
+    "ipc_num": "341"
+  },
+  "IPC 342": {
+    "bns": "BNS 4",
+    "name": "Counterfeiting device or mark used for",
+    "section_num": "4",
+    "ipc_num": "342"
+  },
+  "IPC 345": {
+    "bns": "BNS 345",
+    "name": "(",
+    "section_num": "345",
+    "ipc_num": "345"
+  },
+  "IPC 346": {
+    "bns": "BNS 482",
+    "name": "Tampering with property mark with intent to",
+    "section_num": "482",
+    "ipc_num": "346"
+  },
+  "IPC 347": {
+    "bns": "BNS 347",
+    "name": "(",
+    "section_num": "347",
+    "ipc_num": "347"
+  },
+  "IPC 348": {
+    "bns": "BNS 484",
+    "name": "Making or possession of any instrument for",
+    "section_num": "484",
+    "ipc_num": "348"
+  },
+  "IPC 505": {
+    "bns": "BNS 353",
+    "name": "Statements conducing to public mischief",
+    "section_num": "353",
+    "ipc_num": "505"
+  },
+  "IPC 356": {
+    "bns": "BNS 356",
+    "name": "(",
+    "section_num": "356",
+    "ipc_num": "356"
+  }
+}

@@ -675,50 +675,88 @@ class DocumentRAG:
 
     def answer(self, question: str) -> QAResponse:
         """Answer using RAG + multi-turn conversation history."""
+        print(f"[DocRAG.answer] Question: {question[:100]}...")
+        print(f"[DocRAG.answer] Chunks available: {len(self.chunks)}")
+        
+        if not self.chunks:
+            print(f"[DocRAG.answer] No chunks indexed!")
+            return QAResponse(
+                question=question,
+                answer="No document content available to answer this question.",
+                confidence=0.0,
+                sources=[],
+                disclaimer="Please upload a document first."
+            )
+        
+        # Retrieve relevant chunks
         relevant = self.retrieve(question)
-        context  = "\n\n---\n\n".join(relevant)
-
-        # Last 3 Q&A pairs for multi-turn context
+        print(f"[DocRAG.answer] Retrieved {len(relevant)} chunks")
+        
+        if not relevant:
+            print(f"[DocRAG.answer] No relevant chunks found")
+            return QAResponse(
+                question=question,
+                answer="I couldn't find relevant information in the document to answer this question.",
+                confidence=0.2,
+                sources=[],
+                disclaimer="Try rephrasing your question."
+            )
+        
+        context = "\n\n---\n\n".join(relevant)
+        
+        # Build conversation history
         history_text = ""
         if self.history:
             history_text = "\n\nPREVIOUS CONVERSATION:\n"
             for turn in self.history[-6:]:
                 role = "User" if turn["role"] == "user" else "Assistant"
                 history_text += f"{role}: {turn['content']}\n"
-
+            print(f"[DocRAG.answer] Using {len(self.history)} history turns")
+        
         prompt = f"""You are an Indian legal assistant. Answer the question based on the document excerpts below.
-If the answer is not in the document, say "This is not specified in the document."
-Use previous conversation context if relevant to this question.
+    If the answer is not in the document, say "This is not specified in the document."
+    Use previous conversation context if relevant to this question.
 
-DOCUMENT TYPE: {self.doc_type}
-DOCUMENT EXCERPTS:
-{context}
-{history_text}
-CURRENT QUESTION: {question}
+    DOCUMENT TYPE: {self.doc_type}
+    DOCUMENT EXCERPTS:
+    {context}
+    {history_text}
+    CURRENT QUESTION: {question}
 
-Give a clear, plain English answer in 2-4 sentences. No legal jargon."""
-
-        answer     = call_llm(prompt)
-        confidence = compute_confidence(context, answer)
-
-        # Store in history
-        self.history.append({"role": "user",      "content": question})
-        self.history.append({"role": "assistant",  "content": answer})
-
-        disclaimer = ""
-        if confidence < 0.4:
-            disclaimer = "⚠️ Low confidence — consult a lawyer for certainty."
-        elif confidence < 0.7:
-            disclaimer = "ℹ️ Moderate confidence — verify with the original document."
-
-        return QAResponse(
-            question=question,
-            answer=answer,
-            confidence=confidence,
-            sources=[c[:100] for c in relevant],
-            disclaimer=disclaimer,
-        )
-
+    Give a clear, plain English answer in 2-4 sentences. No legal jargon."""
+        
+        try:
+            answer = call_llm(prompt)
+            print(f"[DocRAG.answer] Generated answer: {answer[:100]}...")
+            
+            confidence = compute_confidence(context, answer)
+            
+            # Store in history
+            self.history.append({"role": "user", "content": question})
+            self.history.append({"role": "assistant", "content": answer})
+            
+            disclaimer = ""
+            if confidence < 0.4:
+                disclaimer = "⚠️ Low confidence — consult a lawyer for certainty."
+            elif confidence < 0.7:
+                disclaimer = "ℹ️ Moderate confidence — verify with the original document."
+            
+            return QAResponse(
+                question=question,
+                answer=answer,
+                confidence=confidence,
+                sources=[c[:100] for c in relevant],
+                disclaimer=disclaimer,
+            )
+        except Exception as e:
+            print(f"[DocRAG.answer] LLM call failed: {e}")
+            return QAResponse(
+                question=question,
+                answer=f"Error generating answer: {str(e)}",
+                confidence=0.0,
+                sources=[],
+                disclaimer="Technical error occurred. Please try again."
+            )
 
 # ─────────────────────────────────────────────────────────────
 # Main analysis pipeline
