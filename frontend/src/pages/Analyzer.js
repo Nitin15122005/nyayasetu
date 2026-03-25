@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Card, SectionTitle, PageTitle, ErrBox, DropZone, Btn, Input, Tag, Ic, ICONS, ProgressBar, Divider, Spinner } from "../components/UI";
 
+// ── Constants ─────────────────────────────────────────────────────────────────
 const RISK = {
   "Safe":      { color: "#4d7cfe", dim: "#0a1535", label: "Safe",      icon: "✓" },
   "Caution":   { color: "#94a3b8", dim: "#0f1623", label: "Caution",   icon: "⚠" },
@@ -8,15 +9,280 @@ const RISK = {
   "Illegal":   { color: "#c0392b", dim: "#180505", label: "Illegal",   icon: "✕" },
 };
 const OVERALL_C = { Safe: "#4d7cfe", Moderate: "#94a3b8", High: "#e05c5c", Critical: "#c0392b" };
+const VERDICT_C = { green: "#22c55e", orange: "#f59e0b", red: "#e05c5c" };
 
+const TYPE_OPTIONS = [
+  { key: "rental_agreement",   label: "Rental Agreement" },
+  { key: "employment_contract",label: "Employment Contract" },
+  { key: "loan_agreement",     label: "Loan Agreement" },
+  { key: "sale_agreement",     label: "Sale Agreement" },
+  { key: "service_agreement",  label: "Service Agreement" },
+  { key: "nda",                label: "Non-Disclosure Agreement" },
+  { key: "fir",                label: "FIR / Police Complaint" },
+  { key: "legal_notice",       label: "Legal Notice / Court Document" },
+  { key: "unknown",            label: "General Legal Document" },
+];
+
+const NUM_ICONS = { monetary: "₹", date: "📅", percentage: "%", duration: "⏱", other: "#" };
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+/** Signature verdict banner */
+const VerdictBanner = ({ verdict, t }) => {
+  if (!verdict) return null;
+  const color = VERDICT_C[verdict.color] || "#94a3b8";
+  const icons = { "Safe to Sign": "✓", "Negotiate First": "⚠", "Do Not Sign": "✕" };
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 14,
+      padding: "16px 20px", borderRadius: 12,
+      background: `${color}12`, border: `2px solid ${color}55`,
+      marginBottom: 16, animation: "fadeUp 0.3s ease",
+    }}>
+      <div style={{
+        width: 40, height: 40, borderRadius: 10,
+        background: `${color}22`, border: `1.5px solid ${color}55`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: 20, color, flexShrink: 0,
+      }}>
+        {icons[verdict.verdict] || "?"}
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 11, color, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 3 }}>
+          Final Verdict
+        </div>
+        <div style={{ fontSize: 16, fontWeight: 800, color, marginBottom: 2 }}>{verdict.verdict}</div>
+        <div style={{ fontSize: 13, color: t.sub, lineHeight: 1.5 }}>{verdict.reason}</div>
+      </div>
+    </div>
+  );
+};
+
+/** Red flag counter summary */
+const RedFlagSummary = ({ clauses, t }) => {
+  const risky = (clauses || []).filter(c => c.risk_level === "High Risk" || c.risk_level === "Illegal");
+  if (!risky.length) return null;
+  return (
+    <div style={{
+      padding: "14px 18px", borderRadius: 10,
+      background: "#e05c5c0a", border: "1.5px solid #e05c5c30",
+      marginBottom: 16, animation: "fadeUp 0.3s ease",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+        <span style={{ fontSize: 14 }}>🚩</span>
+        <span style={{ fontSize: 13, fontWeight: 800, color: "#e05c5c" }}>
+          {risky.length} clause{risky.length > 1 ? "s" : ""} need{risky.length === 1 ? "s" : ""} your attention before signing
+        </span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {risky.map((c, i) => (
+          <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+            <span style={{
+              fontSize: 10, fontWeight: 800, color: RISK[c.risk_level].color,
+              background: RISK[c.risk_level].dim, border: `1px solid ${RISK[c.risk_level].color}40`,
+              borderRadius: 4, padding: "1px 6px", flexShrink: 0, marginTop: 2,
+            }}>{c.risk_level}</span>
+            <span style={{ fontSize: 12, color: t.sub, lineHeight: 1.5 }}>{c.explanation}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/** Document type confidence banner with dropdown to correct */
+const TypeConfidenceBanner = ({ result, onTypeChange, t }) => {
+  const [correcting, setCorrecting] = useState(false);
+  if (!result) return null;
+  const conf = result.type_confidence;
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+      padding: "10px 14px", borderRadius: 9,
+      background: t.surfaceUp, border: `1px solid ${t.border}`,
+      marginBottom: 14, fontSize: 13,
+    }}>
+      <span style={{ color: t.muted, fontSize: 11 }}>Detected as</span>
+      <strong style={{ color: t.text }}>{result.document_type}</strong>
+      <span style={{
+        padding: "2px 8px", borderRadius: 99, fontSize: 11, fontWeight: 700,
+        background: conf >= 70 ? "#22c55e18" : "#f59e0b18",
+        color: conf >= 70 ? "#22c55e" : "#f59e0b",
+        border: `1px solid ${conf >= 70 ? "#22c55e40" : "#f59e0b40"}`,
+      }}>
+        {conf}% confidence
+      </span>
+      {!correcting && (
+        <button onClick={() => setCorrecting(true)} style={{
+          marginLeft: "auto", background: "none", border: "none", cursor: "pointer",
+          fontSize: 11, color: t.blue, fontFamily: "inherit", fontWeight: 700,
+        }}>
+          Correct type ▾
+        </button>
+      )}
+      {correcting && (
+        <select
+          onChange={e => { onTypeChange(e.target.value); setCorrecting(false); }}
+          style={{
+            marginLeft: "auto", padding: "4px 8px", borderRadius: 7,
+            background: t.surfaceUp, border: `1px solid ${t.border}`,
+            color: t.text, fontSize: 12, cursor: "pointer", fontFamily: "inherit",
+          }}
+        >
+          <option value="">— Select correct type —</option>
+          {TYPE_OPTIONS.map(o => (
+            <option key={o.key} value={o.key}>{o.label}</option>
+          ))}
+        </select>
+      )}
+    </div>
+  );
+};
+
+/** Party obligation map */
+const PartyObligationMap = ({ obligations, t }) => {
+  if (!obligations?.length) return null;
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <SectionTitle t={t}>Who Owes What</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+        {obligations.map((party, i) => (
+          <div key={i} style={{
+            padding: "14px 16px", borderRadius: 10,
+            background: t.surfaceUp, border: `1px solid ${t.border}`,
+          }}>
+            <div style={{
+              fontSize: 11, fontWeight: 900, color: t.blue,
+              textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10,
+            }}>
+              {party.party_name}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {(party.obligations || []).map((ob, j) => (
+                <div key={j} style={{ display: "flex", gap: 7, alignItems: "flex-start" }}>
+                  <span style={{ color: t.blue, flexShrink: 0, marginTop: 2, fontSize: 10 }}>→</span>
+                  <span style={{ fontSize: 12, color: t.sub, lineHeight: 1.55 }}>{ob}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/** Missing clauses detector */
+const MissingClausesPanel = ({ missing, t }) => {
+  if (!missing?.length) return null;
+  const absent = missing.filter(m => !m.present);
+  if (!absent.length) return (
+    <div style={{
+      padding: "10px 14px", borderRadius: 9,
+      background: "#22c55e0a", border: "1px solid #22c55e30",
+      fontSize: 13, color: "#22c55e", marginBottom: 20,
+    }}>
+      ✓ All standard clauses are present in this document.
+    </div>
+  );
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <SectionTitle t={t}>Missing Clauses ({absent.length})</SectionTitle>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {absent.map((m, i) => (
+          <div key={i} style={{
+            display: "flex", gap: 10, alignItems: "flex-start",
+            padding: "11px 14px", borderRadius: 9,
+            background: "#f59e0b08", border: "1px solid #f59e0b30",
+          }}>
+            <span style={{
+              fontSize: 10, fontWeight: 800, color: "#f59e0b",
+              background: "#f59e0b18", border: "1px solid #f59e0b40",
+              borderRadius: 4, padding: "2px 7px", flexShrink: 0, marginTop: 1,
+            }}>MISSING</span>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 2 }}>{m.clause}</div>
+              <div style={{ fontSize: 12, color: t.sub, lineHeight: 1.5 }}>{m.why_important}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/** Key numbers table */
+const KeyNumbersTable = ({ numbers, t }) => {
+  if (!numbers?.length) return null;
+  const typeColor = { monetary: "#22c55e", date: "#4d7cfe", percentage: "#f59e0b", duration: "#a855f7", other: "#94a3b8" };
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <SectionTitle t={t}>Key Numbers at a Glance</SectionTitle>
+      <div style={{
+        display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10,
+      }}>
+        {numbers.map((n, i) => {
+          const c = typeColor[n.type] || "#94a3b8";
+          return (
+            <div key={i} style={{
+              padding: "12px 14px", borderRadius: 9,
+              background: t.surfaceUp, border: `1px solid ${t.border}`,
+              borderTop: `3px solid ${c}`,
+            }}>
+              <div style={{ fontSize: 10, color: t.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>
+                {NUM_ICONS[n.type] || "#"} {n.type}
+              </div>
+              <div style={{ fontSize: 17, fontWeight: 800, color: c, marginBottom: 3 }}>{n.value}</div>
+              <div style={{ fontSize: 11, color: t.sub }}>{n.label}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+/** Deadline alerts */
+const DeadlineAlerts = ({ deadlines, t }) => {
+  if (!deadlines?.length) return null;
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <SectionTitle t={t}>Deadlines & Time Limits</SectionTitle>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {deadlines.map((d, i) => (
+          <div key={i} style={{
+            display: "flex", gap: 12, alignItems: "flex-start",
+            padding: "11px 14px", borderRadius: 9,
+            background: "#4d7cfe08", border: "1px solid #4d7cfe25",
+          }}>
+            <span style={{ fontSize: 16, flexShrink: 0 }}>⏰</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, color: t.text, fontWeight: 600, marginBottom: 2 }}>{d.description}</div>
+              <div style={{ fontSize: 12, color: t.blue, fontWeight: 700 }}>By: {d.deadline}</div>
+              {d.consequence && (
+                <div style={{ fontSize: 11, color: "#e05c5c", marginTop: 3 }}>
+                  ⚠ If missed: {d.consequence}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/** Clause card — now shows safer_version for High Risk / Illegal */
 const ClauseCard = ({ clause, index, t }) => {
-  const [open, setOpen] = useState(false);
+  const [open,      setOpen]      = useState(false);
+  const [showSafer, setShowSafer] = useState(false);
   const rc   = RISK[clause.risk_level] || RISK["Caution"];
   const text = clause.clause_text || clause.text || "";
   const pct  = Math.round((clause.risk_score || 0) * 100);
-  const hasAnalysis = clause.explanation &&
+  const hasExplanation = clause.explanation &&
     clause.explanation !== "Could not parse this clause automatically." &&
     clause.explanation !== "Response parsing failed — check raw output above";
+  const hasSafer = !!clause.safer_version && (clause.risk_level === "High Risk" || clause.risk_level === "Illegal");
 
   return (
     <div style={{
@@ -30,14 +296,22 @@ const ClauseCard = ({ clause, index, t }) => {
     >
       <div style={{ height: 3, background: `linear-gradient(90deg, ${rc.color}, ${rc.color}44)` }} />
 
+      {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 18px", borderBottom: `1px solid ${t.border}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ width: 24, height: 24, borderRadius: 6, background: t.surfaceUp, border: `1px solid ${t.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: t.muted }}>{index + 1}</span>
+          <span style={{ width: 24, height: 24, borderRadius: 6, background: t.surfaceUp, border: `1px solid ${t.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: t.muted }}>
+            {index + 1}
+          </span>
           <span style={{ padding: "3px 12px", borderRadius: 99, background: rc.dim, color: rc.color, fontSize: 11, fontWeight: 800, border: `1px solid ${rc.color}30`, display: "flex", alignItems: "center", gap: 5 }}>
             <span style={{ fontSize: 10 }}>{rc.icon}</span>{rc.label}
           </span>
+          {hasSafer && (
+            <span style={{ padding: "3px 9px", borderRadius: 99, background: "#22c55e10", color: "#22c55e", fontSize: 10, fontWeight: 700, border: "1px solid #22c55e30" }}>
+              ✎ Rewrite available
+            </span>
+          )}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ padding: "3px 10px", borderRadius: 99, background: t.surfaceUp, border: `1px solid ${t.border}`, display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ width: 40, height: 3, borderRadius: 2, background: t.muted, overflow: "hidden" }}>
               <div style={{ width: `${pct}%`, height: "100%", background: rc.color, borderRadius: 2 }} />
@@ -50,13 +324,44 @@ const ClauseCard = ({ clause, index, t }) => {
         </div>
       </div>
 
+      {/* Body */}
       <div style={{ padding: "14px 18px" }}>
-        {hasAnalysis ? (
+        {hasExplanation ? (
           <>
             <div style={{ padding: "10px 14px", borderRadius: 9, background: `${rc.color}08`, borderLeft: `3px solid ${rc.color}`, marginBottom: 10 }}>
               <p style={{ fontSize: 10, color: rc.color, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 5px" }}>Why flagged</p>
               <p style={{ fontSize: 13, color: t.text, margin: 0, lineHeight: 1.7 }}>{clause.explanation}</p>
             </div>
+
+            {/* Safer version toggle (NEW) */}
+            {hasSafer && (
+              <div style={{ marginBottom: 10 }}>
+                <button onClick={() => setShowSafer(s => !s)} style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "7px 14px", borderRadius: 8,
+                  background: "#22c55e10", border: "1px solid #22c55e35",
+                  color: "#22c55e", fontSize: 12, fontWeight: 700,
+                  cursor: "pointer", fontFamily: "inherit",
+                }}>
+                  ✎ {showSafer ? "Hide" : "Show safer rewrite"}
+                </button>
+                {showSafer && (
+                  <div style={{
+                    marginTop: 8, padding: "12px 14px", borderRadius: 9,
+                    background: "#22c55e08", border: "1px solid #22c55e30",
+                    animation: "fadeUp 0.2s ease",
+                  }}>
+                    <p style={{ fontSize: 10, color: "#22c55e", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 7px" }}>
+                      Safer version — propose this to the other party
+                    </p>
+                    <p style={{ fontSize: 13, color: t.text, margin: 0, lineHeight: 1.75, fontStyle: "italic" }}>
+                      "{clause.safer_version}"
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {clause.suggestion && (
               <div style={{ padding: "10px 14px", borderRadius: 9, background: t.surfaceUp, border: `1px solid ${t.border}`, display: "flex", gap: 10, alignItems: "flex-start" }}>
                 <span style={{ fontSize: 16, flexShrink: 0, lineHeight: 1 }}>💡</span>
@@ -76,6 +381,7 @@ const ClauseCard = ({ clause, index, t }) => {
           </div>
         )}
 
+        {/* Full clause text (collapsed) */}
         {open && (
           <div style={{ marginTop: 12, padding: "12px 14px", borderRadius: 9, background: t.bg, border: `1px solid ${t.border}`, animation: "fadeUp 0.2s ease" }}>
             <p style={{ fontSize: 10, color: t.muted, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 8px" }}>Full clause text</p>
@@ -88,32 +394,36 @@ const ClauseCard = ({ clause, index, t }) => {
   );
 };
 
-// ── Main component — uses state/setState props for persistence ────────────────
+// ── Main component ────────────────────────────────────────────────────────────
 export default function Analyzer({ t, toast, state, setState }) {
-  // Unpack persisted state
+  // Persisted state
   const { file, result, qaHist, err } = state;
   const setFile   = v => setState(s => ({ ...s, file: v }));
   const setResult = v => setState(s => ({ ...s, result: v }));
   const setQaHist = v => setState(s => ({ ...s, qaHist: typeof v === "function" ? v(s.qaHist) : v }));
   const setErr    = v => setState(s => ({ ...s, err: v }));
 
-  // Local-only (no need to persist)
+  // Local state
   const [load,   setLoad]   = useState(false);
   const [tab,    setTab]    = useState("clauses");
   const [q,      setQ]      = useState("");
   const [qaLoad, setQaLoad] = useState(false);
   const [step,   setStep]   = useState(0);
 
-  const STEPS = ["Reading document…", "Segmenting clauses…", "Scoring risk…", "Fetching case laws…", "Done!"];
+  const STEPS = ["Reading document…", "Detecting type…", "Scoring clauses…", "Extracting insights…", "Fetching case laws…", "Done!"];
 
-  const run = async () => {
+  // Run analysis
+  const run = async (typeOverride = null) => {
+    if (!file) return;
     setLoad(true); setErr(null); setResult(null); setQaHist([]); setStep(0);
-    const si = setInterval(() => setStep(s => Math.min(s + 1, STEPS.length - 2)), 8000);
+    const si = setInterval(() => setStep(s => Math.min(s + 1, STEPS.length - 2)), 9000);
     try {
-      const fd = new FormData(); fd.append("file", file);
+      const fd = new FormData();
+      fd.append("file", file);
+      if (typeOverride) fd.append("type_override", typeOverride);
       const r = await fetch("http://localhost:8001/api/analyze", { method: "POST", body: fd });
       if (!r.ok) throw new Error((await r.json()).detail || `Error ${r.status}`);
-      clearInterval(si); setStep(4);
+      clearInterval(si); setStep(STEPS.length - 1);
       setResult(await r.json());
       toast("Analysis complete ✓", "success");
       setTab("clauses");
@@ -121,47 +431,56 @@ export default function Analyzer({ t, toast, state, setState }) {
     finally { setLoad(false); }
   };
 
-  const ask = async () => {
-    if (!q.trim() || !result?.session_id) return;
-    const question = q.trim(); setQ(""); setQaLoad(true);
+  // Re-analyze with corrected type
+  const handleTypeChange = async (typeKey) => {
+    if (!file) return;
+    toast(`Re-analyzing as ${TYPE_OPTIONS.find(o => o.key === typeKey)?.label}…`, "info");
+    await run(typeKey);
+  };
+
+  // Q&A (multi-turn)
+  const ask = async (question) => {
+    const q_text = question || q.trim();
+    if (!q_text || !result?.session_id) return;
+    setQ(""); setQaLoad(true);
     try {
       const r = await fetch("http://localhost:8001/api/qa", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, session_id: result.session_id }),
+        body: JSON.stringify({ question: q_text, session_id: result.session_id }),
       });
       const d = await r.json();
-      setQaHist(p => [...p, { question, ...d }]);
+      setQaHist(p => [...p, { question: q_text, ...d }]);
+      setTab("qa");
     } catch (e) { toast("Q&A failed", "error"); }
     finally { setQaLoad(false); }
   };
 
   const riskColor = result ? OVERALL_C[result.overall_risk] || "#94a3b8" : null;
-
-  // ── Filter out the "API key not configured" placeholder ──────────────────
   const validCaseLaws = result?.case_laws?.filter(
     c => c.title !== "IndianKanoon API key not configured" && c.title !== "No case laws found"
   ) || [];
 
   const TABS = [
-    { id: "clauses",  label: "Clauses",   count: result?.clauses?.length },
-    { id: "qa",       label: "Questions", count: qaHist.length || null },
-    { id: "caselaws", label: "Case Laws", count: validCaseLaws.length || null },
+    { id: "clauses",  label: "Clauses",       count: result?.clauses?.length },
+    { id: "insights", label: "Insights",       count: null },
+    { id: "qa",       label: "Ask Questions",  count: qaHist.length || null },
+    { id: "caselaws", label: "Case Laws",      count: validCaseLaws.length || null },
   ];
 
   return (
-    <div style={{ maxWidth: 860, margin: "0 auto", padding: "52px 24px", animation: "fadeUp 0.4s ease" }}>
+    <div style={{ maxWidth: 880, margin: "0 auto", padding: "52px 24px", animation: "fadeUp 0.4s ease" }}>
       <PageTitle icon="doc" title="Document Analyzer" badge="BNS 2023"
         desc="Upload any legal document. Every clause is extracted, risk-scored, and explained in plain language."
         t={t} />
 
-      {/* Upload — only shown when no result */}
+      {/* Upload */}
       {!result && (
         <Card t={t} style={{ marginBottom: 20 }}>
           <DropZone onFile={setFile} accept=".pdf,.png,.jpg,.jpeg"
             hint="Rental agreement · Employment contract · FIR · Legal notice · Loan document" t={t} />
           {file && (
             <div style={{ marginTop: 18, display: "flex", gap: 10, alignItems: "center" }}>
-              <Btn onClick={run} disabled={load} loading={load} t={t}>
+              <Btn onClick={() => run()} disabled={load} loading={load} t={t}>
                 {load ? STEPS[step] : "Run Analysis"}
               </Btn>
               <button onClick={() => setFile(null)} style={{ background: "none", border: "none", cursor: "pointer", color: t.sub, fontSize: 13, fontFamily: "inherit" }}>Clear</button>
@@ -175,7 +494,7 @@ export default function Analyzer({ t, toast, state, setState }) {
         <Card t={t} style={{ textAlign: "center", padding: "56px 24px" }}>
           <Spinner c={t.blue} size={28} />
           <p style={{ color: t.text, marginTop: 20, fontSize: 16, fontWeight: 700 }}>{STEPS[step]}</p>
-          <p style={{ color: t.sub, marginTop: 6, fontSize: 12 }}>This takes 30–60 seconds · Do not close this tab</p>
+          <p style={{ color: t.sub, marginTop: 6, fontSize: 12 }}>This takes 60–90 seconds · Do not close this tab</p>
           <div style={{ maxWidth: 240, margin: "20px auto 0" }}>
             <ProgressBar value={(step + 1) / STEPS.length} color={t.blue} t={t} />
           </div>
@@ -184,12 +503,15 @@ export default function Analyzer({ t, toast, state, setState }) {
 
       {err && <ErrBox msg={err} t={t} />}
 
-      {/* Results — persists across page changes */}
+      {/* Results */}
       {result && !load && (
         <>
-          {/* Overview */}
+          {/* ── Signature verdict banner (NEW) ── */}
+          <VerdictBanner verdict={result.signature_verdict} t={t} />
+
+          {/* ── Overview card ── */}
           <Card t={t} style={{ marginBottom: 16 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 18 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 5 }}>
                   <Ic d={ICONS.doc} size={15} color={t.blue} />
@@ -211,18 +533,23 @@ export default function Analyzer({ t, toast, state, setState }) {
               </div>
             </div>
 
+            {/* Type confidence + correction (NEW) */}
+            <TypeConfidenceBanner result={result} onTypeChange={handleTypeChange} t={t} />
+
             {/* Summary */}
             <div style={{ padding: "14px 18px", borderRadius: 10, background: `${t.blue}0a`, border: `1px solid ${t.blue}20`, marginBottom: 16, fontSize: 14, color: t.text, lineHeight: 1.75 }}>
               {result.summary}
             </div>
 
+            {/* Red flag counter (NEW) */}
+            <RedFlagSummary clauses={result.clauses} t={t} />
+
             {/* Risk distribution */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 14 }}>
               {Object.entries(RISK).map(([k, rc]) => (
                 <div key={k} style={{ textAlign: "center", padding: "14px 8px", borderRadius: 10, background: t.surfaceUp, border: `1.5px solid ${t.border}`, transition: "all 0.2s" }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = rc.color + "55"; e.currentTarget.style.transform = "scale(1.03)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.transform = "scale(1)"; }}
-                >
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.transform = "scale(1)"; }}>
                   <div style={{ fontSize: "1.8rem", fontWeight: 900, color: rc.color, lineHeight: 1 }}>{result.risk_distribution?.[k] || 0}</div>
                   <div style={{ fontSize: 10, color: t.sub, fontWeight: 700, marginTop: 4, letterSpacing: "0.04em" }}>{k}</div>
                   <div style={{ height: 2, borderRadius: 1, background: rc.color + "44", marginTop: 8 }} />
@@ -235,8 +562,8 @@ export default function Analyzer({ t, toast, state, setState }) {
             ))}
           </Card>
 
-          {/* Tabs */}
-          <div style={{ display: "flex", gap: 3, marginBottom: 16 }}>
+          {/* ── Tabs ── */}
+          <div style={{ display: "flex", gap: 3, marginBottom: 16, flexWrap: "wrap" }}>
             {TABS.map(tb => (
               <button key={tb.id} onClick={() => setTab(tb.id)} style={{
                 padding: "8px 18px", borderRadius: 9,
@@ -252,7 +579,7 @@ export default function Analyzer({ t, toast, state, setState }) {
             ))}
           </div>
 
-          {/* Clauses tab */}
+          {/* ── Clauses tab ── */}
           {tab === "clauses" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {result.clauses?.length > 0
@@ -262,26 +589,86 @@ export default function Analyzer({ t, toast, state, setState }) {
             </div>
           )}
 
-          {/* Q&A tab */}
+          {/* ── Insights tab (NEW) ── */}
+          {tab === "insights" && (
+            <div>
+              {/* Key numbers */}
+              <Card t={t} style={{ marginBottom: 16 }}>
+                <KeyNumbersTable numbers={result.key_numbers} t={t} />
+              </Card>
+
+              {/* Deadlines */}
+              {result.deadlines?.length > 0 && (
+                <Card t={t} style={{ marginBottom: 16 }}>
+                  <DeadlineAlerts deadlines={result.deadlines} t={t} />
+                </Card>
+              )}
+
+              {/* Party obligations */}
+              {result.party_obligations?.length > 0 && (
+                <Card t={t} style={{ marginBottom: 16 }}>
+                  <PartyObligationMap obligations={result.party_obligations} t={t} />
+                </Card>
+              )}
+
+              {/* Missing clauses */}
+              <Card t={t}>
+                <MissingClausesPanel missing={result.missing_clauses} t={t} />
+              </Card>
+            </div>
+          )}
+
+          {/* ── Q&A tab (multi-turn + suggested questions) ── */}
           {tab === "qa" && (
             <Card t={t}>
-              <SectionTitle t={t}>Ask about this document</SectionTitle>
+              <SectionTitle t={t}>Ask About This Document</SectionTitle>
               <p style={{ fontSize: 13, color: t.sub, marginBottom: 16, lineHeight: 1.7 }}>
-                Ask anything specific — "What is the notice period?", "Can the landlord raise rent?", "What happens if I miss a payment?"
+                Ask anything — previous answers are remembered in this session.
               </p>
+
+              {/* Suggested questions (NEW) */}
+              {result.suggested_questions?.length > 0 && (
+                <div style={{ marginBottom: 18 }}>
+                  <p style={{ fontSize: 11, color: t.muted, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>
+                    Suggested questions
+                  </p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {result.suggested_questions.map((sq, i) => (
+                      <button key={i} onClick={() => ask(sq)} style={{
+                        padding: "7px 13px", borderRadius: 8,
+                        background: t.surfaceUp, border: `1px solid ${t.border}`,
+                        fontSize: 12, color: t.sub, cursor: "pointer",
+                        fontFamily: "inherit", fontWeight: 500,
+                        textAlign: "left", lineHeight: 1.4,
+                        transition: "all 0.15s",
+                      }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = t.blue + "55"; e.currentTarget.style.color = t.text; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.sub; }}
+                      >
+                        {sq}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Input */}
               <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
                 <Input value={q} onChange={e => setQ(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && ask()}
-                  placeholder="Ask a question about this document…" t={t} />
-                <Btn onClick={ask} disabled={qaLoad || !q.trim()} loading={qaLoad} small t={t}>
+                  placeholder="Type your question or click one above…" t={t} />
+                <Btn onClick={() => ask()} disabled={qaLoad || !q.trim()} loading={qaLoad} small t={t}>
                   {!qaLoad && <Ic d={ICONS.arrow} size={14} color="#fff" sw={2.5} />}
                 </Btn>
               </div>
 
               {qaHist.length === 0 && (
-                <div style={{ textAlign: "center", padding: "32px 0", color: t.muted, fontSize: 13 }}>No questions yet — type above and press Enter</div>
+                <div style={{ textAlign: "center", padding: "32px 0", color: t.muted, fontSize: 13 }}>
+                  No questions yet — type above or click a suggestion
+                </div>
               )}
 
+              {/* Conversation history — newest on top */}
               {[...qaHist].reverse().map((qa, i) => (
                 <div key={i} style={{ padding: "14px 18px", borderRadius: 10, background: t.surfaceUp, border: `1px solid ${t.border}`, marginBottom: 10, animation: "fadeUp 0.25s ease" }}>
                   <p style={{ fontWeight: 800, color: t.text, fontSize: 13, marginBottom: 8 }}>Q: {qa.question}</p>
@@ -297,7 +684,7 @@ export default function Analyzer({ t, toast, state, setState }) {
                   )}
                   {qa.disclaimer && (
                     <p style={{ fontSize: 11, color: t.sub, marginTop: 8, padding: "5px 10px", background: t.surfaceUp, border: `1px solid ${t.border}`, borderRadius: 6 }}>
-                      ℹ️ {qa.disclaimer}
+                      {qa.disclaimer}
                     </p>
                   )}
                 </div>
@@ -305,7 +692,7 @@ export default function Analyzer({ t, toast, state, setState }) {
             </Card>
           )}
 
-          {/* Case laws tab */}
+          {/* ── Case laws tab ── */}
           {tab === "caselaws" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {validCaseLaws.length === 0 ? (
