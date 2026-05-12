@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Float
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Float, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
@@ -10,12 +10,13 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     full_name = Column(String)
-    role = Column(String, default="lawyer") # admin, lawyer, client
+    role = Column(String, default="lawyer")  # admin, lawyer, client
     phone = Column(String, unique=True, nullable=True)
     is_active = Column(Boolean, default=True)
 
     cases = relationship("Case", back_populates="lawyer")
     tasks = relationship("Task", back_populates="assignee")
+    calendar_events = relationship("CalendarEvent", back_populates="user")
 
 class Case(Base):
     __tablename__ = "cases"
@@ -65,7 +66,7 @@ class Invoice(Base):
     lawyer_id = Column(Integer, ForeignKey("users.id"))
     client_name = Column(String)
     amount = Column(Float)
-    status = Column(String, default="Pending") # Pending, Paid, Overdue
+    status = Column(String, default="Pending")  # Pending, Paid, Overdue
     due_date = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -81,3 +82,24 @@ class StatutoryAct(Base):
     url = Column(String)
     doc_id = Column(String, unique=True, index=True)
     act_type = Column(String)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CALENDAR EVENT MODEL (NEW)
+# ══════════════════════════════════════════════════════════════════════════════
+class CalendarEvent(Base):
+    __tablename__ = "calendar_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    event_type = Column(String, default="hearing")  # hearing, deadline, meeting, reminder
+    event_date = Column(String, nullable=False)      # YYYY-MM-DD
+    event_time = Column(String, nullable=True)       # HH:MM
+    court = Column(String, nullable=True)
+    description = Column(Text, nullable=True)
+    matter_id = Column(Integer, ForeignKey("cases.id"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", back_populates="calendar_events")

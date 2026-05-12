@@ -37,9 +37,9 @@ const LINKS = [
   { id: "calendar", label: "Calendar", icon: "doc" },
   { id: "editor", label: "Editor", icon: "file" },
   { id: "research", label: "Research", icon: "book" },
-  { 
-    id: "ai_tools", 
-    label: "AI Tools", 
+  {
+    id: "ai_tools",
+    label: "AI Tools",
     icon: "search",
     subLinks: [
       { id: "analyzer", label: "Analyzer", icon: "search" },
@@ -419,7 +419,14 @@ function App() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: t.bg, color: t.text, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+    <div style={{
+      minHeight: "100vh",
+      background: t.bg,
+      color: t.text,
+      fontFamily: "'DM Sans', system-ui, sans-serif",
+      display: "flex",
+      flexDirection: "column"
+    }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;0,9..40,900;1,9..40,400&family=DM+Serif+Display&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -439,15 +446,24 @@ function App() {
         ::selection { background: ${t.blue}3a; color: ${t.text}; }
         button { font-family: inherit; }
         a { font-family: inherit; }
+        html, body, #root { 
+          min-height: 100vh; 
+          background: ${t.bg}; 
+        }
       `}</style>
 
       <Nav page={page} go={setPage} theme={theme} toggle={() => setTheme(theme === "dark" ? "light" : "dark")} t={t} />
 
-      <main style={{ paddingTop: 60 }}>
+      <main style={{
+        paddingTop: 60,
+        flex: 1,
+        display: "flex",
+        flexDirection: "column"
+      }}>
         {pages[page]}
       </main>
 
-      {page === "home" && <Footer t={t} go={setPage} />}
+      <Footer t={t} go={setPage} />
 
       {toast && <Toast msg={toast.msg} type={toast.type} t={t} onClose={() => setToast(null)} />}
     </div>
