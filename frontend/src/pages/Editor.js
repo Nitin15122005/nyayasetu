@@ -174,6 +174,7 @@ export default function Editor({ t, toast }) {
   const [watermark, setWatermark] = useState("");
   const [showWatermarkModal, setShowWatermarkModal] = useState(false);
   const [documentType, setDocumentType] = useState("Legal Document");
+  const [generatorSource, setGeneratorSource] = useState(null);
 
   const quillRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -185,7 +186,36 @@ export default function Editor({ t, toast }) {
   ]);
   const [chatInput, setChatInput] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
-  const [copilotMode, setCopilotMode] = useState("general"); // general, clause, review, research
+  const [copilotMode, setCopilotMode] = useState("general");
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // CHECK FOR GENERATOR CONTENT ON MOUNT
+  // ══════════════════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    const pendingGenerator = localStorage.getItem("ns_editor_from_generator");
+    if (pendingGenerator) {
+      try {
+        const data = JSON.parse(pendingGenerator);
+        // Validate it's not stale (older than 5 minutes)
+        if (Date.now() - data.timestamp < 300000) {
+          setContent(data.content || "");
+          setTitle(data.title || "Untitled Document");
+          setDocumentType(data.documentType || "Legal Document");
+          setGeneratorSource(data.generatorData || null);
+
+          // Show notification about source
+          if (data.source === "generator") {
+            toast(`Loaded ${data.documentType} from Generator`, "success");
+          }
+        }
+        // Clear the pending data
+        localStorage.removeItem("ns_editor_from_generator");
+      } catch (e) {
+        console.error("Failed to load generator content:", e);
+        localStorage.removeItem("ns_editor_from_generator");
+      }
+    }
+  }, []);
 
   // ── WORD COUNT & STATS ────────────────────────────────────────────────────
   useEffect(() => {
@@ -193,7 +223,6 @@ export default function Editor({ t, toast }) {
     const words = text.trim().split(/\s+/).filter(w => w.length > 0);
     setWordCount(words.length);
     setCharCount(text.length);
-    // Estimate pages: ~500 words per A4 page
     setPageCount(Math.max(1, Math.ceil(words.length / 500)));
   }, [content]);
 
@@ -202,7 +231,7 @@ export default function Editor({ t, toast }) {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
       handleAutoSave();
-    }, 30000); // Auto-save every 30 seconds
+    }, 30000);
     return () => clearTimeout(saveTimeoutRef.current);
   }, [content, title]);
 
@@ -345,7 +374,6 @@ Draft exactly what is requested. Output clean HTML only, no markdown.`;
       });
       const data = await res.json();
 
-      // Clean up the response - remove markdown if any
       let cleanReply = data.reply || "Sorry, I couldn't generate a response.";
       cleanReply = cleanReply.replace(/\*\*/g, "").replace(/#{1,6}\s/g, "");
 
@@ -433,7 +461,6 @@ h3 { text-align: center; text-transform: uppercase; }
       a.click();
       URL.revokeObjectURL(url);
     } else if (format === "doc") {
-      // Create a simple .doc file (actually HTML with .doc extension that Word can open)
       const docHtml = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
 <head><meta charset="UTF-8"><title>${title}</title>
 <style>body { font-family: 'Times New Roman', serif; font-size: 16px; }</style>
@@ -484,7 +511,6 @@ h3 { text-align: center; text-transform: uppercase; }
       if (file.name.endsWith(".html") || file.name.endsWith(".htm")) {
         setContent(text);
       } else {
-        // Plain text - wrap in paragraphs
         const paragraphs = text.split("\n\n").map(p => `<p>${p.replace(/\n/g, "<br/>")}</p>`).join("");
         setContent(paragraphs);
       }
@@ -859,6 +885,21 @@ h3 { text-align: center; text-transform: uppercase; }
                   <>
                     <span>•</span>
                     <span style={{ color: t.muted }}>Saved {lastSaved.toLocaleTimeString()}</span>
+                  </>
+                )}
+                {generatorSource && (
+                  <>
+                    <span>•</span>
+                    <span style={{
+                      color: t.blue,
+                      background: `${t.blue}15`,
+                      padding: "1px 6px",
+                      borderRadius: 4,
+                      fontSize: 10,
+                      fontWeight: 600
+                    }}>
+                      From Generator
+                    </span>
                   </>
                 )}
               </div>
