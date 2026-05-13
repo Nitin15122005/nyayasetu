@@ -1,49 +1,56 @@
 """
-M2 — RAG Engine: Ingestion Pipeline  [GPU-ACCELERATED]
+M2 — RAG Engine: Ingestion Pipeline
 Nyaya-Setu | Team IKS | SPIT CSE 2025-26
 
-GPU usage: sentence-transformers embedding runs on RTX 4050
-           Batch size tuned for 6 GB VRAM (batch=256 safe)
+Reads statute PDFs from data/statutes/, chunks them, embeds via Colab /embed
+endpoint (ngrok), and stores in ChromaDB.
 
-Run once: python m2_rag/ingest.py
+Run once from project root:
+    python modules/m2_rag/ingest.py
 """
 
 import os, sys, json, hashlib
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-# Add backend/ so local_models.py and gpu_utils.py are importable
-_BACKEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "backend")
-if _BACKEND_DIR not in sys.path:
-    sys.path.insert(0, _BACKEND_DIR)
 
-import fitz                        # PyMuPDF
+# ── Path setup (works from any CWD) ────────────────────────────────────────────
+_THIS_DIR    = os.path.dirname(os.path.abspath(__file__))   # modules/m2_rag/
+_ROOT        = os.path.dirname(os.path.dirname(_THIS_DIR))  # project root
+_BACKEND_DIR = os.path.join(_ROOT, "backend")
+for _p in (_BACKEND_DIR, _ROOT):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+import fitz       # PyMuPDF
 import chromadb
-from sentence_transformers import SentenceTransformer
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from tqdm import tqdm
-from gpu_utils import DEVICE, print_gpu_status, clear_gpu_cache
 
-# ── Config ────────────────────────────────────────────────────────────────────
-PDF_DIR       = "data/statutes"
-CHROMA_DIR    = "data/chromadb"
+# Import local_models eagerly so we fail fast with a clear message
+try:
+    from local_models import embed_texts as _colab_embed
+except ModuleNotFoundError:
+    raise SystemExit(
+        f"[INGEST] ERROR: Cannot import local_models.\n"
+        f"  backend dir: {_BACKEND_DIR}\n"
+        f"  Make sure local_models.py exists in backend/ and colab_config.py is set."
+    )
+
+# ── Config ─────────────────────────────────────────────────────────────────────
+PDF_DIR       = os.path.join(_ROOT, "data", "statutes")
+CHROMA_DIR    = os.path.join(_ROOT, "data", "chromadb")
 COLLECTION    = "nyayasetu_legal"
-# Local MuRIL multilingual embedding model (handles Hindi/Marathi natively)
-_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-EMBED_MODEL   = os.path.join(_PROJECT_ROOT, "hf_models", "embedding_model")
 CHUNK_SIZE    = 512
 CHUNK_OVERLAP = 50
-
-# RTX 4050 has 6 GB — batch 256 uses ~800 MB VRAM, safe headroom
-EMBED_BATCH   = 256
+EMBED_BATCH   = 32   # Colab /embed handles batching server-side
 
 STATUTE_META = {
-    "BNS.pdf":  {"act": "Bharatiya Nyaya Sanhita 2023",             "short": "BNS"},
-    "BNSS.pdf": {"act": "Bharatiya Nagarik Suraksha Sanhita 2023",  "short": "BNSS"},
-    "BSA.pdf":  {"act": "Bharatiya Sakshya Adhiniyam 2023",         "short": "BSA"},
-    "BMC.pdf":  {"act": "BMC Bye-Laws Mumbai",                       "short": "BMC"},
+    "BNS.pdf":      {"act": "Bharatiya Nyaya Sanhita 2023",            "short": "BNS"},
+    "BNSS.pdf":     {"act": "Bharatiya Nagarik Suraksha Sanhita 2023", "short": "BNSS"},
+    "BSA.pdf":      {"act": "Bharatiya Sakshya Adhiniyam 2023",        "short": "BSA"},
+    "ipc_bns.pdf":  {"act": "IPC to BNS Mapping Reference",           "short": "IPC_BNS"},
 }
 
 
-def extract_text(pdf_path):
+# ── Text extraction ─────────────────────────────────────────────────────────────
+def extract_text(pdf_path: str) -> list[dict]:
     doc   = fitz.open(pdf_path)
     pages = []
     for i, page in enumerate(doc):
@@ -51,102 +58,119 @@ def extract_text(pdf_path):
         if text:
             pages.append({"page": i + 1, "text": text})
     doc.close()
+    print(f"  Extracted {len(pages)} pages with text")
     return pages
 
 
-def chunk_pages(pages, filename):
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP,
-        separators=["\n\n", "\n", ".", " "],
-    )
+# ── Simple chunker (no langchain dependency) ────────────────────────────────────
+def chunk_pages(pages: list[dict], filename: str) -> list[dict]:
     meta   = STATUTE_META.get(filename, {"act": filename, "short": filename})
     chunks = []
     for page_data in pages:
-        for j, split in enumerate(splitter.split_text(page_data["text"])):
-            cid = hashlib.md5(
-                f"{filename}_{page_data['page']}_{j}_{split[:30]}".encode()
-            ).hexdigest()
-            chunks.append({
-                "id":   cid,
-                "text": split,
-                "metadata": {
-                    "source": filename,
-                    "act":    meta["act"],
-                    "short":  meta["short"],
-                    "page":   str(page_data["page"]),
-                    "chunk":  str(j),
-                }
-            })
+        text = page_data["text"]
+        # Split into chunks of ~CHUNK_SIZE chars with CHUNK_OVERLAP
+        start = 0
+        j     = 0
+        while start < len(text):
+            end   = min(start + CHUNK_SIZE, len(text))
+            chunk = text[start:end].strip()
+            if len(chunk) > 50:  # skip tiny fragments
+                cid = hashlib.md5(
+                    f"{filename}_{page_data['page']}_{j}_{chunk[:30]}".encode()
+                ).hexdigest()
+                chunks.append({
+                    "id":   cid,
+                    "text": chunk,
+                    "metadata": {
+                        "source": filename,
+                        "act":    meta["act"],
+                        "short":  meta["short"],
+                        "page":   str(page_data["page"]),
+                        "chunk":  str(j),
+                    }
+                })
+            start += CHUNK_SIZE - CHUNK_OVERLAP
+            j     += 1
     return chunks
 
 
-def ingest_all():
-    # ── Load embedder on GPU ──────────────────────────────────────────────────
-    print(f"\n[INGEST] Loading embedding model on {DEVICE}...")
-    try:
-        embedder = SentenceTransformer(EMBED_MODEL, device=str(DEVICE), local_files_only=True)
-    except Exception as _e:
-        print(f"[INGEST] ⚠️  Local model unavailable ({_e}). Falling back to all-MiniLM-L6-v2...")
-        embedder = SentenceTransformer("all-MiniLM-L6-v2", device=str(DEVICE))
-    print_gpu_status("after embedder load")
+# ── Embed via Colab /embed (ngrok) ──────────────────────────────────────────────
+def embed_batch(texts: list[str]) -> list[list[float]]:
+    return _colab_embed(texts)
 
-    # ── ChromaDB ──────────────────────────────────────────────────────────────
+
+# ── Main ingestion ──────────────────────────────────────────────────────────────
+def ingest_all():
     os.makedirs(CHROMA_DIR, exist_ok=True)
     client     = chromadb.PersistentClient(path=CHROMA_DIR)
     collection = client.get_or_create_collection(
         COLLECTION, metadata={"hnsw:space": "cosine"}
     )
-    print(f"[INGEST] Collection ready. Existing docs: {collection.count()}")
+    print(f"[INGEST] ChromaDB ready — existing docs: {collection.count()}")
 
     pdf_files = [f for f in os.listdir(PDF_DIR) if f.endswith(".pdf")]
     if not pdf_files:
-        print(f"[WARN] No PDFs in {PDF_DIR}")
+        print(f"[WARN] No PDFs found in {PDF_DIR}")
         return
+
+    print(f"[INGEST] Found {len(pdf_files)} PDFs: {pdf_files}\n")
 
     for filename in pdf_files:
         path = os.path.join(PDF_DIR, filename)
-        print(f"\n[PROCESSING] {filename}")
+        print(f"[PROCESSING] {filename}")
+
         pages  = extract_text(path)
         chunks = chunk_pages(pages, filename)
-        print(f"  Pages: {len(pages)} | Chunks: {len(chunks)}")
+        print(f"  Total chunks: {len(chunks)}")
 
-        # Skip already-indexed
-        existing = set(collection.get(ids=[c["id"] for c in chunks])["ids"])
-        new      = [c for c in chunks if c["id"] not in existing]
-        print(f"  New chunks to embed: {len(new)}")
-        if not new:
-            print("  [SKIP] Already indexed.")
+        # Skip already-indexed chunks
+        existing_ids = set(collection.get(ids=[c["id"] for c in chunks])["ids"])
+        new_chunks   = [c for c in chunks if c["id"] not in existing_ids]
+        print(f"  New chunks to embed: {len(new_chunks)}")
+
+        if not new_chunks:
+            print(f"  [SKIP] {filename} already fully indexed.\n")
             continue
 
-        # GPU batch embedding
-        for i in tqdm(range(0, len(new), EMBED_BATCH), desc=f"  GPU embed {filename}"):
-            batch      = new[i : i + EMBED_BATCH]
-            texts      = [c["text"]     for c in batch]
-            ids        = [c["id"]       for c in batch]
-            metadatas  = [c["metadata"] for c in batch]
+        # Embed in batches and upsert
+        for i in tqdm(range(0, len(new_chunks), EMBED_BATCH),
+                      desc=f"  Embedding {filename}"):
+            batch     = new_chunks[i : i + EMBED_BATCH]
+            texts     = [c["text"]     for c in batch]
+            ids       = [c["id"]       for c in batch]
+            metadatas = [c["metadata"] for c in batch]
 
-            # encode() on GPU — SentenceTransformer respects `device` set at init
-            embeddings = embedder.encode(
-                texts,
-                batch_size=EMBED_BATCH,
-                show_progress_bar=False,
-                convert_to_numpy=True,
-                normalize_embeddings=True,     # cosine sim = dot product after norm
-            ).tolist()
+            try:
+                embeddings = embed_batch(texts)
+                collection.upsert(
+                    ids=ids,
+                    embeddings=embeddings,
+                    documents=texts,
+                    metadatas=metadatas,
+                )
+            except Exception as e:
+                print(f"\n  [ERROR] Batch {i//EMBED_BATCH + 1} failed: {e}")
+                print("  Make sure your Colab ngrok server is running!")
+                raise
 
-            collection.upsert(
-                ids=ids, embeddings=embeddings,
-                documents=texts, metadatas=metadatas,
-            )
+        print(f"  ✅ Done. ChromaDB total: {collection.count()}\n")
 
-        print_gpu_status(f"after {filename}")
-        clear_gpu_cache()
-
-    print(f"\n[DONE] Total docs in ChromaDB: {collection.count()}")
+    # Write manifest
+    manifest = {
+        "collection": COLLECTION,
+        "total_docs": collection.count(),
+        "files": pdf_files,
+    }
     with open(os.path.join(CHROMA_DIR, "manifest.json"), "w") as f:
-        json.dump({"collection": COLLECTION, "total": collection.count(),
-                   "files": pdf_files}, f, indent=2)
+        json.dump(manifest, f, indent=2)
+    print(f"[DONE] ChromaDB total: {collection.count()} chunks across {len(pdf_files)} files")
+    print(f"[DONE] Manifest written to {CHROMA_DIR}/manifest.json")
 
 
 if __name__ == "__main__":
+    print("=" * 60)
+    print("  NYAYA-SETU — Statute PDF Ingestion")
+    print("  Uses Colab /embed endpoint via ngrok")
+    print("=" * 60)
+    print()
     ingest_all()

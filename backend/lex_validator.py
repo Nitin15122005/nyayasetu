@@ -214,6 +214,121 @@ FALLBACK_MAPPINGS = {
 
 
 # ============================================================================
+# RAG-BASED MAPPING (uses ChromaDB built from statute PDFs)
+# ============================================================================
+
+_CHROMA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "data", "chromadb")
+_COLLECTION = "nyayasetu_legal"
+
+
+class RAGMapping:
+    """
+    Queries the ChromaDB vector store (built from ipc_bns.pdf + BNS.pdf)
+    to find the BNS equivalent of an IPC/CrPC/IEA section.
+
+    Embedding is done via the Colab /embed endpoint (local_models.embed_texts).
+    Falls back gracefully if Colab or ChromaDB is unavailable.
+    """
+
+    def __init__(self):
+        self._client     = None
+        self._collection = None
+        self._ready      = False
+        self._cache: Dict[str, Dict] = {}
+        self._init()
+
+    def _init(self):
+        try:
+            import chromadb as _chroma
+            if not os.path.exists(_CHROMA_DIR):
+                print("[RAGMapping] ChromaDB not found. Run modules/m2_rag/ingest.py first.")
+                return
+            self._client     = _chroma.PersistentClient(path=_CHROMA_DIR)
+            self._collection = self._client.get_collection(_COLLECTION)
+            count            = self._collection.count()
+            if count == 0:
+                print("[RAGMapping] ChromaDB collection is empty. Run ingest.py first.")
+                return
+            print(f"[RAGMapping] ✅ ChromaDB ready — {count} statute chunks indexed.")
+            self._ready = True
+        except Exception as e:
+            print(f"[RAGMapping] Init failed ({e}). Falling back to hardcoded table.")
+
+    def lookup(self, act: str, section: str) -> Optional[Dict]:
+        """
+        Search ChromaDB for the BNS equivalent of `act section`.
+        Returns a mapping dict or None if not found / unavailable.
+        """
+        if not self._ready:
+            return None
+
+        key = f"{act} {section}"
+        if key in self._cache:
+            return self._cache[key]
+
+        # Build search query — describe what we're looking for
+        query = f"{act} Section {section} equivalent BNS BNSS BSA new law"
+
+        try:
+            from local_models import embed_texts
+            vecs = embed_texts([query])
+            if not vecs:
+                return None
+
+            results = self._collection.query(
+                query_embeddings=[vecs[0]],
+                n_results=3,
+                include=["documents", "metadatas", "distances"],
+                where={"short": {"$in": ["IPC_BNS", "BNS", "BNSS", "BSA"]}},
+            )
+
+            docs      = results["documents"][0]
+            metadatas = results["metadatas"][0]
+            distances = results["distances"][0]
+
+            if not docs:
+                return None
+
+            # Pick the most relevant chunk and let Groq extract the mapping
+            context = "\n\n".join(
+                f"[{metadatas[i]['act']} | p.{metadatas[i]['page']}]\n{docs[i]}"
+                for i in range(min(3, len(docs)))
+            )
+            confidence = round(1 - distances[0], 3)  # cosine distance → similarity
+
+            if confidence < 0.3:
+                # Not relevant enough
+                return None
+
+            prompt = (
+                f"You are an expert in Indian criminal law.\n"
+                f"The user wants to know the BNS/BNSS/BSA equivalent of {key}.\n"
+                f"Use ONLY the context below. Return a JSON object with:\n"
+                f'  {{"bns": "BNS XXX or BNSS XXX or BSA XXX or ABOLISHED", "name": "section name"}}\n'
+                f"Return ONLY the JSON object.\n\nCONTEXT:\n{context}"
+            )
+
+            content = _groq_chat(prompt, temperature=0.0, max_tokens=128)
+            m = re.search(r'\{.*\}', content, re.DOTALL)
+            if m:
+                data = json.loads(m.group())
+                result = {
+                    "bns":          data.get("bns", "UNKNOWN"),
+                    "name":         data.get("name", ""),
+                    "confidence":   confidence,
+                    "rag_sourced":  True,
+                }
+                self._cache[key] = result
+                return result
+
+        except Exception as e:
+            print(f"[RAGMapping] Lookup failed for {key}: {e}")
+
+        return None
+
+
+# ============================================================================
 # AI-ENHANCED MAPPING
 # ============================================================================
 
@@ -284,18 +399,25 @@ class LexValidator:
     """Main validator with all features"""
     
     def __init__(self):
-        self.extractor = SectionExtractor()
-        self.ai_mapper = AIEnhancedMapping()
+        self.extractor        = SectionExtractor()
+        self.rag_mapper       = RAGMapping()          # ← PDF-backed ChromaDB lookup
+        self.ai_mapper        = AIEnhancedMapping()   # ← Groq AI fallback
         self.fallback_mappings = FALLBACK_MAPPINGS
-    
+
     def get_mapping(self, act: str, section: str) -> Dict:
-        """Get mapping for a section"""
+        """Get BNS mapping for a section — 3-tier lookup."""
         key = f"{act} {section}"
-        
-        # Check fallback mappings
+
+        # ── Tier 1: ChromaDB RAG (statute PDFs) ──────────────────────────────
+        rag_result = self.rag_mapper.lookup(act, section)
+        if rag_result and rag_result.get("bns") not in ("UNKNOWN", None):
+            return rag_result
+
+        # ── Tier 2: Hardcoded fallback table ─────────────────────────────────
         if key in self.fallback_mappings:
             return self.fallback_mappings[key]
-        
+
+        # ── Tier 3: Not found ─────────────────────────────────────────────────
         return {
             "bns": "UNKNOWN",
             "name": "Section not found",
@@ -321,11 +443,12 @@ class LexValidator:
             
             if mapping and mapping.get("bns") != "UNKNOWN":
                 found_mappings.append({
-                    "old": key,
-                    "new": mapping["bns"],
-                    "name": mapping.get("name", ""),
+                    "old":         key,
+                    "new":         mapping["bns"],
+                    "name":        mapping.get("name", ""),
                     "ai_generated": mapping.get("ai_generated", False),
-                    "confidence": mapping.get("confidence", 0.8)
+                    "rag_sourced": mapping.get("rag_sourced", False),
+                    "confidence":  mapping.get("confidence", 0.8)
                 })
         
         return {
