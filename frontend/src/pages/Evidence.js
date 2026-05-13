@@ -116,22 +116,22 @@ const Countdown = ({ seconds, onExpire, t }) => {
 export default function Evidence({ t, toast, state, setState }) {
   // Persisted across navigation via parent state
   const setS = (key, val) => setState(s => ({ ...s, [key]: val }));
-  const step          = state.step          ?? 0;
-  const cert          = state.cert          ?? null;
-  const name          = state.name          ?? "";
-  const phone         = state.phone         ?? "";
-  const address       = state.address       ?? "";
-  const brief         = state.brief         ?? "";
-  const incDate       = state.incDate       ?? "";
+  const step = state.step ?? 0;
+  const cert = state.cert ?? null;
+  const name = state.name ?? "";
+  const phone = state.phone ?? "";
+  const address = state.address ?? "";
+  const brief = state.brief ?? "";
+  const incDate = state.incDate ?? "";
   const policeStation = state.policeStation ?? "";
 
-  const setStep          = v => setS("step", v);
-  const setCert          = v => setS("cert", v);
-  const setName          = v => setS("name", v);
-  const setPhone         = v => setS("phone", v);
-  const setAddress       = v => setS("address", v);
-  const setBrief         = v => setS("brief", v);
-  const setIncDate       = v => setS("incDate", v);
+  const setStep = v => setS("step", v);
+  const setCert = v => setS("cert", v);
+  const setName = v => setS("name", v);
+  const setPhone = v => setS("phone", v);
+  const setAddress = v => setS("address", v);
+  const setBrief = v => setS("brief", v);
+  const setIncDate = v => setS("incDate", v);
   const setPoliceStation = v => setS("policeStation", v);
 
   // Local-only state (file/preview blobs can't be serialized)
@@ -149,6 +149,13 @@ export default function Evidence({ t, toast, state, setState }) {
   const [load, setLoad] = useState(false);
   const [err, setErr] = useState(null);
   const fileRef = useRef();
+  
+  // ── Auto-redirect if file lost (e.g. on refresh) ───────────────────────────
+  useEffect(() => {
+    if (step > 0 && step < 4 && !file) {
+      setStep(0);
+    }
+  }, [step, file]);
 
 
   const pickFile = (f) => {
@@ -196,6 +203,12 @@ export default function Evidence({ t, toast, state, setState }) {
 
   // ── Generate certificate ────────────────────────────────────────────────────
   const generate = async () => {
+    if (!file) {
+      setErr("Evidence file missing. Please go back and re-upload.");
+      setStep(0);
+      toast("Evidence file missing. Please re-upload.", "error");
+      return;
+    }
     setLoad(true); setErr(null);
     try {
       const fd = new FormData();

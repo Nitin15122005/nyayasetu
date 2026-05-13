@@ -17,6 +17,7 @@ from typing import Optional
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Depends
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from twilio.rest import Client as TwilioClient
@@ -89,6 +90,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(tasks_router)
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    print(f"Validation Error: {exc.errors()}")
+    # Convert errors to a serializable format
+    serializable_errors = []
+    for err in exc.errors():
+        d = dict(err)
+        if "ctx" in d:
+            d["ctx"] = {k: str(v) for k, v in d["ctx"].items()}
+        serializable_errors.append(d)
+    return JSONResponse(
+        status_code=422,
+        content={"detail": serializable_errors, "body": str(exc.body)},
+    )
 
 doc_sessions: dict = {}
 otp_store:    dict = {}
@@ -1857,12 +1873,12 @@ async def verify_otp(req: OTPVerifyRequest):
 @app.post("/api/evidence")
 async def evidence_certificate(
     file: UploadFile = File(...),
-    complainant_name: str = Form(default="Not provided"),
-    complainant_phone: str = Form(default=""),
-    complainant_address: str = Form(default=""),
-    incident_brief: str = Form(default="Evidence submitted via NyayaSetu"),
-    incident_date: str = Form(default=""),
-    police_station: str = Form(default=""),
+    complainant_name: str = Form("Not provided"),
+    complainant_phone: str = Form(""),
+    complainant_address: str = Form(""),
+    incident_brief: str = Form("Evidence submitted via NyayaSetu"),
+    incident_date: str = Form(""),
+    police_station: str = Form(""),
 ):
     if complainant_phone:
         phone = normalise_phone(complainant_phone)
@@ -1871,7 +1887,7 @@ async def evidence_certificate(
             raise HTTPException(403, "Phone number not verified. Please complete OTP verification.")
     file_bytes = await file.read()
     try:
-        cert, pdf_bytes = generate_evidence_certificate(
+        cert, pdf_bytes, blockchain_res = generate_evidence_certificate(
             file_bytes=file_bytes,
             file_name=file.filename,
             complainant_name=complainant_name,
