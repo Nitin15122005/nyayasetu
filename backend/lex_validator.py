@@ -15,6 +15,8 @@ import os
 import sys
 import re
 import json
+import logging
+import time as _time
 from typing import Dict, List, Tuple, Optional, Set
 from datetime import datetime
 import hashlib
@@ -26,13 +28,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import fitz  # PyMuPDF
 import numpy as np
-from dotenv import load_dotenv
-from groq import Groq
+from ai_clients import groq_client as _groq_client, GROQ_MODEL
 
-load_dotenv()
-
-GROQ_MODEL  = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-_groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+logger = logging.getLogger(__name__)
 
 def _groq_chat(prompt: str, temperature: float = 0.1, max_tokens: int = 512) -> str:
     """Thin helper so we can swap models in one place."""
@@ -51,7 +49,7 @@ try:
     CHROMA_AVAILABLE = True
 except ImportError:
     CHROMA_AVAILABLE = False
-    print("[LexValidator] ChromaDB not available, using fallback mappings")
+    logger.warning("[LexValidator] ChromaDB not available, using fallback mappings")
 
 # Try to import sentence-transformers
 try:
@@ -242,18 +240,27 @@ class RAGMapping:
         try:
             import chromadb as _chroma
             if not os.path.exists(_CHROMA_DIR):
-                print("[RAGMapping] ChromaDB not found. Run modules/m2_rag/ingest.py first.")
+                logger.warning("[RAGMapping] ChromaDB not found. Run modules/m2_rag/ingest.py first.")
                 return
             self._client     = _chroma.PersistentClient(path=_CHROMA_DIR)
             self._collection = self._client.get_collection(_COLLECTION)
             count            = self._collection.count()
             if count == 0:
-                print("[RAGMapping] ChromaDB collection is empty. Run ingest.py first.")
+                logger.warning("[RAGMapping] ChromaDB collection is empty. Run ingest.py first.")
                 return
-            print(f"[RAGMapping] ✅ ChromaDB ready — {count} statute chunks indexed.")
+            # FIX (this session): this line used to be print() with a "✅"
+            # character, which raises UnicodeEncodeError on Windows' default
+            # console codepage. The except below then misreported that
+            # crash as "Init failed", masking an already-successful Chroma
+            # connection and permanently forcing the hardcoded-table tier.
+            # Confirmed via direct diagnostic that ChromaDB itself loads
+            # fine (3254 chunks, 384-dim, zero errors) — the crash was the
+            # only blocker. Converted to logger.info to match the rest of
+            # this file; no retrieval/mapping logic changed.
+            logger.info("[RAGMapping] ChromaDB ready — %d statute chunks indexed.", count)
             self._ready = True
         except Exception as e:
-            print(f"[RAGMapping] Init failed ({e}). Falling back to hardcoded table.")
+            logger.warning("[RAGMapping] Init failed (%s). Falling back to hardcoded table.", e)
 
     def lookup(self, act: str, section: str) -> Optional[Dict]:
         """
@@ -269,12 +276,15 @@ class RAGMapping:
 
         # Build search query — describe what we're looking for
         query = f"{act} Section {section} equivalent BNS BNSS BSA new law"
+        logger.info("[RAGMapping] QUERY: %s", query)
 
         try:
             from local_models import embed_texts
             vecs = embed_texts([query])
             if not vecs:
+                logger.warning("[RAGMapping] EMBEDDING failed — no vector returned for %s. Falling back.", key)
                 return None
+            logger.info("[RAGMapping] EMBEDDING generated — dim=%d", len(vecs[0]))
 
             results = self._collection.query(
                 query_embeddings=[vecs[0]],
@@ -286,9 +296,16 @@ class RAGMapping:
             docs      = results["documents"][0]
             metadatas = results["metadatas"][0]
             distances = results["distances"][0]
+            logger.info("[RAGMapping] VECTOR SEARCH — %d candidates returned", len(docs))
 
             if not docs:
+                logger.warning("[RAGMapping] No candidates found for %s. Falling back.", key)
                 return None
+
+            for i in range(len(docs)):
+                logger.info("[RAGMapping] RETRIEVED CHUNK #%d — %s p.%s (distance=%.3f): %s",
+                            i + 1, metadatas[i].get("act", "?"), metadatas[i].get("page", "?"),
+                            distances[i], docs[i][:80].replace("\n", " "))
 
             # Pick the most relevant chunk and let Groq extract the mapping
             context = "\n\n".join(
@@ -296,9 +313,11 @@ class RAGMapping:
                 for i in range(min(3, len(docs)))
             )
             confidence = round(1 - distances[0], 3)  # cosine distance → similarity
+            logger.info("[RAGMapping] SIMILARITY SCORE — top match confidence=%.3f", confidence)
 
             if confidence < 0.3:
                 # Not relevant enough
+                logger.info("[RAGMapping] Confidence %.3f below 0.3 threshold for %s. Falling back.", confidence, key)
                 return None
 
             prompt = (
@@ -320,10 +339,11 @@ class RAGMapping:
                     "rag_sourced":  True,
                 }
                 self._cache[key] = result
+                logger.info("[RAGMapping] SELECTED MAPPING — %s -> %s (%s)", key, result["bns"], result["name"])
                 return result
 
         except Exception as e:
-            print(f"[RAGMapping] Lookup failed for {key}: {e}")
+            logger.warning("[RAGMapping] Lookup failed for %s: %s", key, e)
 
         return None
 
@@ -381,7 +401,7 @@ If not found, set bns_section to "NOT_FOUND"."""
                 return mapped
 
         except Exception as e:
-            print(f"[AI Mapping] Error: {e}")
+            logger.error("[AI Mapping] Error: %s", e)
         
         return {
             "bns": "UNKNOWN",
@@ -426,21 +446,33 @@ class LexValidator:
     
     def validate(self, text: str, use_ai: bool = True) -> Dict:
         """Validate text and return mappings"""
+        _stage_start = _time.time()
+        logger.info("[LEX] STAGE ENTER — validate: %d chars, use_ai=%s", len(text), use_ai)
+
         references = self.extractor.extract(text)
         found_mappings = []
-        
+
         for act, section in references:
             key = f"{act} {section}"
-            
+
             # Get mapping
             mapping = self.get_mapping(act, section)
-            
+
             # If not found and AI is enabled
             if mapping.get("bns") == "UNKNOWN" and use_ai:
                 ai_mapping = self.ai_mapper.map_section_with_ai(key, text)
                 if ai_mapping.get("bns") != "UNKNOWN":
                     mapping = ai_mapping
-            
+
+            # Which tier actually answered this lookup — the single most
+            # useful line for RAG evaluation: rag / hardcoded_table / ai /
+            # not_found.
+            tier = ("rag" if mapping.get("rag_sourced") else
+                    "ai" if mapping.get("ai_generated") else
+                    "not_found" if mapping.get("bns") == "UNKNOWN" else
+                    "hardcoded_table")
+            logger.info("[LEX] %s -> %s via %s", key, mapping.get("bns", "UNKNOWN"), tier)
+
             if mapping and mapping.get("bns") != "UNKNOWN":
                 found_mappings.append({
                     "old":         key,
@@ -450,7 +482,9 @@ class LexValidator:
                     "rag_sourced": mapping.get("rag_sourced", False),
                     "confidence":  mapping.get("confidence", 0.8)
                 })
-        
+
+        logger.info("[LEX] STAGE EXIT — %d/%d references resolved (%.2fs)",
+                    len(found_mappings), len(references), _time.time() - _stage_start)
         return {
             "total_old_references": len(found_mappings),
             "mappings": found_mappings,
@@ -611,7 +645,7 @@ def load_kb_sections() -> Set[str]:
                     sections.add(n)
             return sections
     except Exception as e:
-        print(f"[KB Load] Error: {e}")
+        logger.warning("[KB Load] Error: %s", e)
     
     return set()
 

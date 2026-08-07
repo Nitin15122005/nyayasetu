@@ -49,6 +49,10 @@ COLAB_CLASSIFY_URL = endpoint("/classify")
 
 COLAB_RETRIEVE_URL = endpoint("/retrieve")
 
+# NOTE: the notebook (NyayaSetu_Final_Corrected.ipynb) does not currently
+# expose /ner or /keywords — it only serves /health /translate /summarize
+# /embed /classify /retrieve. These two are not called anywhere; kept as
+# placeholders for if/when the notebook adds them, not as live endpoints.
 COLAB_NER_URL = endpoint("/ner")
 
 COLAB_KEYWORDS_URL = endpoint("/keywords")

@@ -8,6 +8,15 @@ GPU usage:
   - LLM                              → Groq Cloud API (no local GPU needed)
 
 Embedding model loaded from hf_models/embedding_model (MuRIL — handles Hindi/Marathi natively).
+
+ARCHIVED — never imported by any live entry point. Superseded by
+backend/lex_validator.py::RAGMapping + modules/m2_rag/ingest.py, which query
+the same data/chromadb collection via the Colab-hosted /embed endpoint
+(NyayaSetu_Final_Corrected.ipynb — multilingual MiniLM-L12-v2, 384-dim).
+This file loads a local MuRIL encoder instead, which is a different vector
+space than the one that populated that collection — so even if wired in
+as-is, its query embeddings would not be comparable to the stored vectors.
+Kept for reference rather than deleted.
 """
 
 import os, sys, json, re

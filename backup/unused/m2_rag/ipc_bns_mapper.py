@@ -3,6 +3,14 @@ ipc_bns_mapper.py — RAG-Based IPC to BNS Mapping using ChromaDB
 Nyaya-Setu | Team IKS | SPIT CSE 2025-26
 
 This module uses ChromaDB to store and retrieve mappings from the IPC-BNS PDF
+
+ARCHIVED — never imported by any live entry point. Superseded by the RAG tier
+inside backend/lex_validator.py's LexValidator.get_mapping(), which is the
+mapping path actually reachable from /api/compliance. This file maintains its
+own separate ChromaDB store (data/chromadb_ipc_mappings) and its own local
+MuRIL embedding model, independent of the Colab-hosted /embed endpoint the
+live path uses, and its own hardcoded fallback table that has already
+drifted from lex_validator.py's. Kept for reference rather than deleted.
 """
 
 import os

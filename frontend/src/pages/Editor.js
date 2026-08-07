@@ -238,7 +238,7 @@ export default function Editor({ t, toast }) {
   const handleAutoSave = useCallback(async () => {
     if (!content.trim()) return;
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("ns_token");
       const payload = {
         title,
         content,

@@ -153,7 +153,10 @@ def ingest_all():
                 print("  Make sure your Colab ngrok server is running!")
                 raise
 
-        print(f"  ✅ Done. ChromaDB total: {collection.count()}\n")
+        # Emoji removed deliberately — can raise UnicodeEncodeError on
+        # Windows' default console codepage, crashing the script on its
+        # last line after ingestion already succeeded. Message unchanged.
+        print(f"  Done. ChromaDB total: {collection.count()}\n")
 
     # Write manifest
     manifest = {

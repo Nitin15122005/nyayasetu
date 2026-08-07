@@ -18,26 +18,20 @@ Supports: Marathi, Hindi, Tamil, Telugu, Kannada, Bengali, Gujarati,
 
 import os, re, json, time as _time
 import sys
+import logging
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from groq import Groq
-from dotenv import load_dotenv
-from google import genai
 from google.genai import types
+from ai_clients import groq_client, GROQ_MODEL, GEMINI_MODEL, get_gemini_client
 
-load_dotenv()
+logger = logging.getLogger(__name__)
 
 # ── Clients & config ──────────────────────────────────────────────────────────
-groq_client    = Groq(api_key=os.getenv("GROQ_API_KEY"))
-GROQ_MODEL     = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL   = "gemini-2.5-flash"
-
 GEMINI_CHUNK_CHARS = 30_000
 
 GROQ_TRANSLATION_MODEL     = "llama-3.3-70b-versatile"
 GROQ_TRANSLATE_CHUNK_CHARS = 2500
 
-_gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+_gemini_client = get_gemini_client()
 
 # ── Language tables ───────────────────────────────────────────────────────────
 SUPPORTED_LANGUAGES = {
@@ -140,7 +134,7 @@ def detect_language_with_llm(text: str) -> dict:
         if m:
             return json.loads(m.group(0))
     except Exception as e:
-        print(f"[TRANSLATOR] LLM language detection failed: {e}")
+        logger.warning("[TRANSLATOR] LLM language detection failed: %s", e)
 
     code = detect_script(text)
     return {
@@ -193,8 +187,8 @@ def _gemini_call_single(chunk: str, src_lang: str, tgt_lang: str) -> str:
             msg = str(e)
             if any(code in msg for code in ("503", "429", "500", "UNAVAILABLE", "rate_limit")):
                 wait = 5 * attempt
-                print(f"[TRANSLATOR] Gemini transient error (attempt {attempt}/3): {msg[:80]}. "
-                      f"Retrying in {wait}s...")
+                logger.warning("[TRANSLATOR] Gemini transient error (attempt %d/3): %s. Retrying in %ds...",
+                                attempt, msg[:80], wait)
                 _time.sleep(wait)
             else:
                 break
@@ -211,26 +205,26 @@ def _gemini_translate(text: str, src_lang: str, tgt_lang: str) -> tuple[str, flo
 
     if len(text) > GEMINI_CHUNK_CHARS:
         chunks = _split_into_chunks(text, GEMINI_CHUNK_CHARS)
-        print(f"[TRANSLATOR] Gemini: {len(text)} chars -> {len(chunks)} chunks "
-              f"({src_name} -> {tgt_name})")
+        logger.info("[TRANSLATOR] Gemini: %d chars -> %d chunks (%s -> %s)",
+                     len(text), len(chunks), src_name, tgt_name)
         parts = []
         for i, chunk in enumerate(chunks, 1):
-            print(f"[TRANSLATOR] Gemini chunk {i}/{len(chunks)} ({len(chunk)} chars)...")
+            logger.info("[TRANSLATOR] Gemini chunk %d/%d (%d chars)...", i, len(chunks), len(chunk))
             try:
                 parts.append(_gemini_call_single(chunk, src_lang, tgt_lang))
             except Exception as e:
                 raise ValueError(f"Gemini chunk {i}/{len(chunks)} failed: {e}")
         full = "\n\n".join(parts)
-        print(f"[TRANSLATOR] Gemini OK — {len(full)} chars (chunked)")
+        logger.info("[TRANSLATOR] Gemini OK — %d chars (chunked)", len(full))
         return full, 95.0
 
-    print(f"[TRANSLATOR] Gemini: {len(text)} chars ({src_name} -> {tgt_name})...")
+    logger.info("[TRANSLATOR] Gemini: %d chars (%s -> %s)...", len(text), src_name, tgt_name)
     try:
         out = _gemini_call_single(text, src_lang, tgt_lang)
-        print(f"[TRANSLATOR] Gemini OK — {len(out)} chars")
+        logger.info("[TRANSLATOR] Gemini OK — %d chars", len(out))
         return out, 95.0
     except Exception as e:
-        print(f"[TRANSLATOR] Gemini API error: {e}")
+        logger.error("[TRANSLATOR] Gemini API error: %s", e)
         raise ValueError(f"Gemini translation failed: {e}")
 
 
@@ -238,7 +232,7 @@ def _gemini_translate(text: str, src_lang: str, tgt_lang: str) -> tuple[str, flo
 def _groq_translate(text: str, src_name: str, tgt_name: str, document_type: str) -> tuple[str, float]:
     if len(text) > GROQ_TRANSLATE_CHUNK_CHARS:
         chunks = _split_into_chunks(text, GROQ_TRANSLATE_CHUNK_CHARS)
-        print(f"[TRANSLATOR] Groq fallback: {len(text)} chars -> {len(chunks)} chunks")
+        logger.info("[TRANSLATOR] Groq fallback: %d chars -> %d chunks", len(text), len(chunks))
         parts, min_conf = [], 100.0
         for i, chunk in enumerate(chunks, 1):
             t, c = _groq_translate(chunk, src_name, tgt_name, document_type)
@@ -263,10 +257,10 @@ def _groq_translate(text: str, src_name: str, tgt_name: str, document_type: str)
             max_tokens=3000,
         )
         translated = resp.choices[0].message.content.strip()
-        print(f"[TRANSLATOR] Groq chunk OK — {len(translated)} chars")
+        logger.info("[TRANSLATOR] Groq chunk OK — %d chars", len(translated))
         return translated, 75.0
     except Exception as e:
-        print(f"[TRANSLATOR] Groq fallback failed: {e}")
+        logger.error("[TRANSLATOR] Groq fallback failed: %s", e)
         return "", 0.0
 
 
@@ -293,7 +287,7 @@ def _extract_legal_terms(original: str, translated: str, src_name: str) -> list[
         if m:
             return json.loads(m.group(0))
     except Exception as e:
-        print(f"[TRANSLATOR] Legal term extraction failed: {e}")
+        logger.warning("[TRANSLATOR] Legal term extraction failed: %s", e)
     return []
 
 
@@ -319,7 +313,7 @@ def _generate_fir_summary(translated_text: str, src_name: str) -> str:
     try:
         return _groq_call(prompt, max_tokens=800, temperature=0.1)
     except Exception as e:
-        print(f"[TRANSLATOR] FIR summary generation failed: {e}")
+        logger.warning("[TRANSLATOR] FIR summary generation failed: %s", e)
         return ""
 
 
@@ -389,6 +383,10 @@ def translate_legal_text(
     if not text or not text.strip():
         return _error_result("", "en", "Empty text provided.")
 
+    _stage_start = _time.time()
+    logger.info("[TRANSLATOR] STAGE ENTER — translate_legal_text: %d chars, %s -> %s",
+                len(text), source_lang or "auto", target_lang)
+
     # ── Step 1: Language detection ─────────────────────────────────────────────
     if not source_lang or source_lang == "auto":
         detection = detect_language_with_llm(text)
@@ -403,6 +401,8 @@ def translate_legal_text(
 
     # Already in target language — return as-is
     if source_lang == target_lang:
+        logger.info("[TRANSLATOR] STAGE EXIT — already in target language, no translation needed (%.2fs)",
+                    _time.time() - _stage_start)
         return _ok_result(
             translated_text=text,
             fir_summary="",
@@ -425,7 +425,7 @@ def translate_legal_text(
     from local_models import translate_chunks_nllb, NLLB_LANG_MAP
     if source_lang in NLLB_LANG_MAP and target_lang in NLLB_LANG_MAP:
         try:
-            print(f"[TRANSLATOR] Using Colab NLLB ({src_name} -> {tgt_name})...")
+            logger.info("[TRANSLATOR] Using Colab NLLB (%s -> %s)...", src_name, tgt_name)
             translated_text = translate_chunks_nllb(
                 text, src_lang=source_lang, tgt_lang=target_lang
             )
@@ -436,11 +436,11 @@ def translate_legal_text(
                     f"Translated via Colab NLLB-200 model · "
                     f"{src_name} -> {tgt_name}"
                 )
-                print(f"[TRANSLATOR] Colab NLLB OK — {len(translated_text)} chars")
+                logger.info("[TRANSLATOR] Colab NLLB OK — %d chars", len(translated_text))
             else:
-                print("[TRANSLATOR] Colab NLLB returned empty — trying Gemini...")
+                logger.warning("[TRANSLATOR] Colab NLLB returned empty — trying Gemini...")
         except Exception as nllb_err:
-            print(f"[TRANSLATOR] Colab NLLB failed ({nllb_err}), trying Gemini...")
+            logger.warning("[TRANSLATOR] Colab NLLB failed (%s), trying Gemini...", nllb_err)
             translated_text = ""
 
     # ── 2b. Fallback to Gemini ─────────────────────────────────────────────────
@@ -450,24 +450,28 @@ def translate_legal_text(
         try:
             translated_text, confidence = _gemini_translate(text, source_lang, target_lang)
         except Exception as e:
-            print(f"[TRANSLATOR] Gemini failed ({e}), falling back to Groq ({GROQ_MODEL})...")
+            logger.warning("[TRANSLATOR] Gemini failed (%s), falling back to Groq (%s)...", e, GROQ_MODEL)
             engine = f"groq-{GROQ_MODEL}"
             notes  = f"Gemini unavailable — used Groq fallback ({GROQ_MODEL}) · {src_name} -> {tgt_name}"
             translated_text, confidence = _groq_translate(
                 text, src_name, tgt_name, document_type
             )
             if not translated_text:
+                logger.error("[TRANSLATOR] STAGE EXIT — all engines failed (%.2fs): %s",
+                             _time.time() - _stage_start, e)
                 return _error_result(source_lang, target_lang, f"All engines failed: {e}")
 
     # ── Step 3: Post-processing ────────────────────────────────────────────────
-    print("[TRANSLATOR] Extracting legal terms from full document...")
+    logger.info("[TRANSLATOR] Extracting legal terms from full document...")
     legal_terms = _extract_legal_terms(text, translated_text, src_name)
 
     fir_summary = ""
     if target_lang == "en":
-        print("[TRANSLATOR] Generating structured FIR summary...")
+        logger.info("[TRANSLATOR] Generating structured FIR summary...")
         fir_summary = _generate_fir_summary(translated_text, src_name)
 
+    logger.info("[TRANSLATOR] STAGE EXIT — engine=%s confidence=%.0f%% (%.2fs)",
+                engine, confidence, _time.time() - _stage_start)
     return _ok_result(
         translated_text=translated_text,
         fir_summary=fir_summary,

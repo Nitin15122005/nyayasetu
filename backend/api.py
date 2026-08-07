@@ -30,6 +30,7 @@ from lex_validator import (
 )
 from modules.m3_evidence.evidence import generate_evidence_certificate
 from legal_translator import translate_legal_text, translate_fir, get_supported_languages
+from ai_clients import get_gemini_client, GEMINI_MODEL
 
 from sqlalchemy.orm import Session
 import models
@@ -122,20 +123,22 @@ def normalise_phone(phone: str) -> str:
     return p
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    user = db.query(models.User).first()
-    if user:
-        return user
-    dev_user = models.User(
-        email="dev@local.com",
-        hashed_password=get_password_hash("dev"),
-        full_name="Nitin Sharma",
-        role="admin",
-        phone=None
+    credentials_exception = HTTPException(
+        status_code=401,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
     )
-    db.add(dev_user)
-    db.commit()
-    db.refresh(dev_user)
-    return dev_user
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if user is None:
+        raise credentials_exception
+    return user
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PYDANTIC MODELS
@@ -1332,16 +1335,6 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
 
 @app.post("/api/auth/login")
 def login(user: UserLogin, db: Session = Depends(get_db)):
-    if user.email == "dev@local.com":
-        dev_user = db.query(models.User).filter(models.User.email == "dev@local.com").first()
-        if not dev_user:
-            dev_user = models.User(email="dev@local.com", hashed_password=get_password_hash("dev"), full_name="Nitin Sharma", role="admin", phone=None)
-            db.add(dev_user)
-            db.commit()
-            db.refresh(dev_user)
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(data={"sub": dev_user.email, "role": dev_user.role, "id": dev_user.id}, expires_delta=access_token_expires)
-        return {"access_token": access_token, "token_type": "bearer", "user": {"id": dev_user.id, "email": dev_user.email, "full_name": dev_user.full_name, "role": dev_user.role}}
     db_user = db.query(models.User).filter(models.User.email == user.email).first()
     if not db_user or not verify_password(user.password, db_user.hashed_password):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
@@ -1636,12 +1629,11 @@ Return ONLY valid JSON, without any markdown formatting like ```json or ```."""
 
 @app.post("/api/editor/copilot")
 def editor_copilot(req: CopilotRequest):
-    if not os.getenv("GEMINI_API_KEY"):
+    client = get_gemini_client()
+    if client is None:
         return {"reply": "API Key missing. Cannot connect to copilot."}
     try:
-        from google import genai
         from google.genai import types
-        client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
         system_prompt = """You are an elite legal drafting AI Copilot, acting as a Senior Partner at a top-tier Indian law firm.
 
 Your primary job is to generate top-notch, watertight, and highly professional legal clauses, pleadings, and correspondence.
@@ -1665,7 +1657,7 @@ Current Document Context (use this to match party names, tone, and subject matte
 
 Draft exactly what is requested based on the rules above.
 """
-        response = client.models.generate_content(model="gemini-2.5-flash", contents=full_prompt, config=types.GenerateContentConfig(system_instruction=system_prompt, temperature=0.3))
+        response = client.models.generate_content(model=GEMINI_MODEL, contents=full_prompt, config=types.GenerateContentConfig(system_instruction=system_prompt, temperature=0.3))
         return {"reply": response.text}
     except Exception as e:
         print(f"Copilot Error: {e}")

@@ -18,8 +18,20 @@ Architecture:
 
 import re
 import time as _time
+import logging
 import requests as _req
 from colab_config import endpoint, COLAB_TIMEOUT
+
+# basicConfig is a no-op if a handler is already installed (e.g. by
+# ai_clients.py, imported earlier in the app's import chain), so this is
+# safe to call here too — it just guarantees this module's own log calls
+# are visible even when it's run standalone (`python local_models.py`).
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    datefmt="%H:%M:%S",
+)
+logger = logging.getLogger(__name__)
 
 # ── NLLB language map (still exported — legal_translator.py imports it) ───────
 NLLB_LANG_MAP = {
@@ -93,7 +105,7 @@ def translate_with_nllb(
     if tgt_lang not in NLLB_LANG_MAP:
         raise ValueError(f"[NLLB] Unknown tgt_lang '{tgt_lang}'.")
 
-    print(f"[LOCAL_MODELS] → Colab /translate  ({src_lang} → {tgt_lang}, {len(text)} chars)")
+    logger.info("[LOCAL_MODELS] → Colab /translate  (%s → %s, %d chars)", src_lang, tgt_lang, len(text))
     data = _post("/translate", {
         "text":     text,
         "src_lang": src_lang,
@@ -119,10 +131,10 @@ def translate_chunks_nllb(
     so legal_translator.py falls through to Gemini/Groq correctly.
     """
     if src_lang not in NLLB_LANG_MAP or tgt_lang not in NLLB_LANG_MAP:
-        print(f"[LOCAL_MODELS] translate_chunks_nllb: unsupported lang pair {src_lang}→{tgt_lang}")
+        logger.warning("[LOCAL_MODELS] translate_chunks_nllb: unsupported lang pair %s→%s", src_lang, tgt_lang)
         return ""
 
-    print(f"[LOCAL_MODELS] → Colab /translate  ({src_lang} → {tgt_lang}, {len(text)} chars, chunked server-side)")
+    logger.info("[LOCAL_MODELS] → Colab /translate  (%s → %s, %d chars, chunked server-side)", src_lang, tgt_lang, len(text))
     try:
         data = _post("/translate", {
             "text":     text,
@@ -131,12 +143,12 @@ def translate_chunks_nllb(
         })
         translated = data.get("translated_text", "").strip()
         if not translated:
-            print("[LOCAL_MODELS] Colab /translate returned empty — signalling fallback.")
+            logger.warning("[LOCAL_MODELS] Colab /translate returned empty — signalling fallback.")
             return ""
-        print(f"[LOCAL_MODELS] Colab NLLB OK — {len(translated)} chars")
+        logger.info("[LOCAL_MODELS] Colab NLLB OK — %d chars", len(translated))
         return translated
     except RuntimeError as e:
-        print(f"[LOCAL_MODELS] Colab NLLB failed: {e}. Signalling fallback.")
+        logger.warning("[LOCAL_MODELS] Colab NLLB failed: %s. Signalling fallback.", e)
         return ""
 
 
@@ -157,7 +169,7 @@ def summarize_with_bart(
 
     Raises RuntimeError on Colab failure → caller falls back to Groq.
     """
-    print(f"[LOCAL_MODELS] → Colab /summarize  ({min(len(text), max_input_chars)} chars)")
+    logger.info("[LOCAL_MODELS] → Colab /summarize  (%d chars)", min(len(text), max_input_chars))
     data = _post("/summarize", {
         "text":       text[:max_input_chars],
         "min_length": min_length,
@@ -166,7 +178,7 @@ def summarize_with_bart(
     summary = data.get("summary", "").strip()
     if not summary:
         raise RuntimeError("[COLAB] BART returned empty summary.")
-    print(f"[LOCAL_MODELS] Colab BART OK — {len(summary)} chars")
+    logger.info("[LOCAL_MODELS] Colab BART OK — %d chars", len(summary))
     return summary
 
 
@@ -184,12 +196,15 @@ def embed_texts(texts: list[str], batch_size: int = 32) -> list[list[float]]:
     """
     if not texts:
         return []
-    print(f"[LOCAL_MODELS] → Colab /embed  ({len(texts)} texts)")
+    logger.info("[LOCAL_MODELS] → Colab /embed  (%d texts)", len(texts))
     data = _post("/embed", {"texts": texts})
     embeddings = data.get("embeddings")
     if not embeddings:
         raise RuntimeError("[COLAB] Embed endpoint returned no vectors.")
-    print(f"[LOCAL_MODELS] Colab embed OK — {len(embeddings)} × {data.get('dim')} vectors")
+    # The notebook's /embed response has no top-level "dim" key — derive it
+    # from the vectors themselves instead of assuming one (was always
+    # printing "None" here before).
+    logger.info("[LOCAL_MODELS] Colab embed OK — %d × %d vectors", len(embeddings), len(embeddings[0]))
     return embeddings
 
 
@@ -205,7 +220,7 @@ def classify_document(text: str) -> dict:
         {"label": "FIR", "confidence": 0.92, "all_probs": {...}}
     Raises RuntimeError on Colab failure.
     """
-    print(f"[LOCAL_MODELS] → Colab /classify  ({len(text)} chars)")
+    logger.info("[LOCAL_MODELS] → Colab /classify  (%d chars)", len(text))
     data = _post("/classify", {"text": text[:512]})
     if "label" not in data:
         raise RuntimeError("[COLAB] Classify endpoint returned unexpected response.")
@@ -218,23 +233,31 @@ def classify_document(text: str) -> dict:
 
 def retrieve_similar(query: str, top_k: int = 3, label_filter: str = None) -> list[dict]:
     """
-    Hybrid FAISS + BM25 search against the legal corpus on Colab.
+    Hybrid FAISS + BM25 search on Colab, over the notebook's OWN document
+    corpus (the classifier training samples — FIR / Bail Application /
+    Court Notice / Legal Notice / Affidavit / Property Deed) — NOT the
+    BNS/BNSS/BSA statute text used by ingest.py / lex_validator.RAGMapping.
+    Not currently called by any live feature; kept as a ready-to-use,
+    notebook-compatible capability.
 
     Args:
         query:        Search query (any language)
         top_k:        Number of results
-        label_filter: Optional document type filter e.g. "FIR"
+        label_filter: Optional document type filter e.g. "FIR" — accepted
+                       here but NOT implemented by the notebook's /retrieve
+                       endpoint today, so it is currently a no-op server-side.
 
     Returns:
-        List of dicts: {rank, score, label, language, text, method}
+        List of dicts: {text, label, language, source_file, page, score}
+        (matches the notebook's hybrid_retrieve() output exactly)
     """
-    print(f"[LOCAL_MODELS] → Colab /retrieve  (query={query[:60]!r}, top_k={top_k})")
+    logger.info("[LOCAL_MODELS] → Colab /retrieve  (query=%r, top_k=%d)", query[:60], top_k)
     payload = {"query": query, "top_k": top_k}
     if label_filter:
         payload["label_filter"] = label_filter
     data = _post("/retrieve", payload)
     results = data.get("results", [])
-    print(f"[LOCAL_MODELS] Colab retrieve OK — {len(results)} results")
+    logger.info("[LOCAL_MODELS] Colab retrieve OK — %d results", len(results))
     return results
 
 
@@ -245,7 +268,8 @@ def retrieve_similar(query: str, top_k: int = 3, label_filter: str = None) -> li
 def check_colab_health() -> dict:
     """
     Ping the Colab inference server. Returns the /health JSON or raises.
-    Used by api.py's /api/colab/status endpoint.
+    Not currently called by any live api.py endpoint (no /api/colab/status
+    route exists) — available for wiring in a future health-check endpoint.
     """
     try:
         resp = _req.get(endpoint("/health"), timeout=10)
@@ -287,7 +311,7 @@ if __name__ == "__main__":
     print("\n[TEST] Colab /health")
     h = check_colab_health()
     print(f"  Status : {h['status']} | Device: {h['device']}")
-    print(f"  Models : {h['models']}")
+    print(f"  Corpus : {h.get('corpus_size', '?')} docs | FAISS vectors: {h.get('faiss_vectors', '?')}")
 
     # 2. Translation
     sample_hi = "आरोपी ने दिनांक 15/03/2025 को शिकायतकर्ता का मोबाईल चुराया।"
@@ -320,7 +344,7 @@ if __name__ == "__main__":
     # 6. Retrieval
     print(f"\n[TEST] Hybrid Retrieval")
     results = retrieve_similar("इस FIR में आरोपी का नाम क्या है?", top_k=2)
-    for r in results:
-        print(f"  [{r['rank']}] {r['label']} ({r['score']:.3f}): {r['text'][:80]}...")
+    for i, r in enumerate(results, start=1):
+        print(f"  [{i}] {r['label']} ({r['score']:.3f}): {r['text'][:80]}...")
 
     print("\n✅ All Colab client functions working correctly.")

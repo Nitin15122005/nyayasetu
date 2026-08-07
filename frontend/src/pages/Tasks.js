@@ -4,7 +4,7 @@ import { Btn, Card, Ic, ICONS } from "../components/UI";
 // ── API Base ──────────────────────────────────────────────────────────────────
 const API_BASE = "http://localhost:8001";
 
-const getToken = () => localStorage.getItem("token") || "";
+const getToken = () => localStorage.getItem("ns_token") || "";
 
 const api = {
   async fetchWithAuth(url, options = {}) {

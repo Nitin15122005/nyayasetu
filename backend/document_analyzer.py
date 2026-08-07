@@ -18,6 +18,7 @@ PARALLEL PIPELINE (v6):
 """
 
 import os, sys, re, json
+import logging
 from concurrent.futures import ThreadPoolExecutor, wait as _futures_wait, ALL_COMPLETED
 import requests as req
 from typing import Optional
@@ -26,22 +27,18 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import fitz          # PyMuPDF
-from groq import Groq
 from pydantic import BaseModel
-from dotenv import load_dotenv
 from gpu_utils import DEVICE
 from legal_translator import detect_language_with_llm, translate_legal_text
+from ai_clients import groq_client, GROQ_MODEL
 from urllib.parse import quote
 import base64
 
-load_dotenv()
+logger = logging.getLogger(__name__)
 
 _EXECUTOR = ThreadPoolExecutor(max_workers=12)
 
-GROQ_MODEL           = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 INDIANKANOON_API_KEY = os.getenv("INDIANKANOON_API_KEY", "")
-
-groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 
 # ─────────────────────────────────────────────────────────────
@@ -62,7 +59,7 @@ class _ColabEmbedder:
         # Lazy import — avoids circular dependency at module level
         import numpy as np
         self._np = np
-        print("[DocRAG] Using Colab embedding server (no local GPU needed).")
+        logger.info("[DocRAG] Using Colab embedding server (no local GPU needed).")
 
     def encode(
         self,
@@ -88,7 +85,11 @@ class _ColabEmbedder:
             arr  = self._np.array(vecs, dtype=self._np.float32)
             return arr
         except Exception as e:
-            print(f"[DocRAG] ⚠️  Colab embed failed ({e}). Using zero fallback.")
+            # Emoji removed deliberately — a literal "⚠️" here can raise
+            # UnicodeEncodeError on Windows' default console codepage,
+            # which would turn this already-degraded zero-fallback path
+            # into a hard crash instead. Message text is unchanged.
+            logger.warning("[DocRAG] Colab embed failed (%s). Using zero fallback.", e)
             # Return zero vectors — retrieval will score all chunks equally,
             # which degrades Q&A quality but won't crash the server.
             dim = 384   # paraphrase-multilingual-MiniLM-L12-v2 dim
@@ -298,7 +299,7 @@ def extract_text_with_vision(image_bytes: bytes) -> str:
         )
         return completion.choices[0].message.content.strip()
     except Exception as e:
-        print(f"[VISION] Failed to extract text: {e}")
+        logger.warning("[VISION] Failed to extract text: %s", e)
         return ""
 
 def extract_text(file_bytes: bytes, filename: str) -> str:
@@ -307,7 +308,7 @@ def extract_text(file_bytes: bytes, filename: str) -> str:
         doc  = fitz.open(stream=file_bytes, filetype="pdf")
         text = "\n".join(page.get_text("text") for page in doc).strip()
         if len(text) < 50:
-            print("[ANALYZER] PDF seems scanned. Falling back to Vision OCR...")
+            logger.info("[ANALYZER] PDF seems scanned. Falling back to Vision OCR...")
             vision_text = []
             for page_num in range(min(3, len(doc))):
                 page     = doc.load_page(page_num)
@@ -321,7 +322,7 @@ def extract_text(file_bytes: bytes, filename: str) -> str:
         doc.close()
         return text
     elif any(fname.endswith(ext) for ext in [".jpg", ".jpeg", ".png", ".webp"]):
-        print("[ANALYZER] Image detected. Using Vision OCR...")
+        logger.info("[ANALYZER] Image detected. Using Vision OCR...")
         return extract_text_with_vision(file_bytes)
     return ""
 
@@ -391,7 +392,7 @@ def _groq_call(model: str, prompt: str, temperature: float, max_tokens: int) -> 
             msg = str(e)
             if "429" in msg or "rate_limit" in msg.lower():
                 wait = 3 * (attempt + 1)
-                print(f"[LLM] Rate limit hit. Waiting {wait}s (attempt {attempt+1}/4)...")
+                logger.warning("[LLM] Rate limit hit. Waiting %ds (attempt %d/4)...", wait, attempt + 1)
                 _time.sleep(wait)
             else:
                 raise
@@ -475,10 +476,10 @@ def summarize_document(text: str, doc_type: str) -> str:
         from local_models import summarize_with_bart
         bart_summary = summarize_with_bart(text[:3000])
         if bart_summary and len(bart_summary) > 40:
-            print("[ANALYZER] Colab BART summary OK.")
+            logger.info("[ANALYZER] Colab BART summary OK.")
             return bart_summary
     except Exception as bart_err:
-        print(f"[ANALYZER] Colab BART failed ({bart_err}), falling back to Groq...")
+        logger.warning("[ANALYZER] Colab BART failed (%s), falling back to Groq...", bart_err)
 
     # ── 2. Groq LLM fallback ────────────────────────────────────────────────────
     prompt = f"""You are an Indian legal assistant. Summarize this {doc_type} in plain English for a common person.
@@ -822,7 +823,7 @@ def fetch_case_laws(query: str, doc_type: str, sections: list[str] = None, pagen
                 if len(results) >= 25:
                     break
         except Exception as e:
-            print(f"[KANOON] Error for '{search_q[:60]}': {e}")
+            logger.warning("[KANOON] Error for '%s': %s", search_q[:60], e)
     return results
 
 
@@ -874,7 +875,7 @@ def fetch_acts(
                 "doc_id":       tid,
             })
     except Exception as e:
-        print(f"[ACTS ERROR] {e}")
+        logger.error("[ACTS ERROR] %s", e)
     return results
 
 
@@ -901,7 +902,7 @@ class DocumentRAG:
         self.embeddings = self.embedder.encode(
             clauses, normalize_embeddings=True, convert_to_numpy=True
         )
-        print(f"[DocRAG] Indexed {len(clauses)} chunks for {doc_type}")
+        logger.info("[DocRAG] Indexed %d chunks for %s", len(clauses), doc_type)
 
     def retrieve(self, query: str, top_k: int = 3) -> list[str]:
         if not self.chunks:
@@ -913,7 +914,7 @@ class DocumentRAG:
         return [self.chunks[i] for i in top_idx]
 
     def answer(self, question: str) -> QAResponse:
-        print(f"[DocRAG.answer] Q: {question[:100]}")
+        logger.info("[DocRAG.answer] Q: %s", question[:100])
         if not self.chunks:
             return QAResponse(
                 question=question,
@@ -964,7 +965,7 @@ class DocumentRAG:
                 sources=[c[:120] for c in relevant[:3]], disclaimer=disclaimer
             )
         except Exception as e:
-            print(f"[DocRAG.answer] Error: {e}")
+            logger.error("[DocRAG.answer] Error: %s", e)
             return QAResponse(
                 question=question, answer=f"Error: {str(e)}",
                 confidence=0.0, sources=[], disclaimer="Technical error. Please try again."
@@ -982,13 +983,13 @@ def analyze_document(
 ) -> tuple["DocumentAnalysis", "DocumentRAG"]:
     import time as _t
     t0 = _t.perf_counter()
-    print(f"\n[ANALYZER] >> Processing: {filename}")
+    logger.info("[ANALYZER] >> Processing: %s", filename)
 
     # ── Step 0: Extract text ─────────────────────────────────────────────────
     text = extract_text(file_bytes, filename)
     if not text:
         raise ValueError("Could not extract text from document.")
-    print(f"[ANALYZER] Extracted {len(text)} chars")
+    logger.info("[ANALYZER] Extracted %d chars", len(text))
 
     # ── Phase 1: Translation + type detect + section extract — PARALLEL ────────
     def _do_translation():
@@ -997,7 +998,7 @@ def analyze_document(
         name = lang_info.get("language_name", "English")
         if code == "en":
             return None, None, None, None, name, code
-        print(f"[ANALYZER|P1] Detected {name}. Translating (Colab NLLB → Gemini → Groq)...")
+        logger.info("[ANALYZER|P1] Detected %s. Translating (Colab NLLB → Gemini → Groq)...", name)
         tr = translate_legal_text(text, source_lang=code, target_lang="en")
         translated = tr.get("translated_text", "")
         if translated and translated.strip():
@@ -1009,7 +1010,7 @@ def analyze_document(
                 name,
                 code,
             )
-        print("[ANALYZER|P1] Translation returned empty — using original text.")
+        logger.warning("[ANALYZER|P1] Translation returned empty — using original text.")
         return None, None, None, None, name, code
 
     def _do_type_detect(wtext: str):
@@ -1034,12 +1035,15 @@ def analyze_document(
     f_sections = _EXECUTOR.submit(_do_sections, working_text, original_text)
     type_key, doc_type, type_conf = f_type.result()
     mentioned_sections             = f_sections.result()
-    print(f"[ANALYZER|P1] ✔ Type: {doc_type} ({type_conf}%) | Sections: {mentioned_sections}")
+    # Emoji removed deliberately (see the [DocRAG] Colab-embed-failure note
+    # above) — this line runs unconditionally mid-pipeline, so a
+    # UnicodeEncodeError here would fail an otherwise-successful analysis.
+    logger.info("[ANALYZER|P1] Type: %s (%s%%) | Sections: %s", doc_type, type_conf, mentioned_sections)
 
     # ── Phase 2: All analysis tasks submitted simultaneously ──────────────────
     all_clauses = segment_clauses(working_text)
     clauses     = all_clauses[:max_clauses]
-    print(f"[ANALYZER|P2] Submitting {len(clauses)} clause tasks + 6 doc-level tasks...")
+    logger.info("[ANALYZER|P2] Submitting %d clause tasks + 6 doc-level tasks...", len(clauses))
 
     clause_futs  = [_EXECUTOR.submit(analyze_clause, c, doc_type) for c in clauses]
     f_summary    = _EXECUTOR.submit(summarize_document, working_text, doc_type)
@@ -1063,7 +1067,7 @@ def analyze_document(
         try:
             analyzed.append(f.result())
         except Exception as e:
-            print(f"[ANALYZER|P2] Clause task failed: {e}")
+            logger.warning("[ANALYZER|P2] Clause task failed: %s", e)
 
     risky    = [c for c in analyzed if c.risk_level in ["High Risk", "Illegal"]]
     kw_src   = risky or [c for c in analyzed if c.risk_level == "Caution"]
@@ -1077,7 +1081,7 @@ def analyze_document(
         try:
             return fut.result()
         except Exception as e:
-            print(f"[ANALYZER] Task failed ({type(e).__name__}): {e}")
+            logger.warning("[ANALYZER] Task failed (%s): %s", type(e).__name__, e)
             return default
 
     summary              = _safe(f_summary,    "Summary generation failed.")
@@ -1114,7 +1118,10 @@ def analyze_document(
     doc_rag.index(all_clauses, doc_type)
 
     elapsed = _t.perf_counter() - t0
-    print(f"[ANALYZER] ✅ Done in {elapsed:.1f}s | Verdict: {signature_verdict.verdict}")
+    # Emoji removed deliberately — same rationale as above; this is the
+    # final line of a successful analysis, so a crash here would turn a
+    # completed analysis into a failed request.
+    logger.info("[ANALYZER] Done in %.1fs | Verdict: %s", elapsed, signature_verdict.verdict)
 
     return DocumentAnalysis(
         document_name=filename,

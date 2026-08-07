@@ -28,7 +28,7 @@ export default function Research({ t, toast }) {
     const fetchActs = async () => {
       setActsLoading(true);
       try {
-        const token = localStorage.getItem("token");
+        const token = localStorage.getItem("ns_token");
         const headers = { "Content-Type": "application/json" };
         if (token) headers["Authorization"] = `Bearer ${token}`;
 
@@ -172,7 +172,7 @@ export default function Research({ t, toast }) {
     try {
       const pageToFetch = isLoadMore ? currentSearch.page + 1 : 0;
       const finalPayload = { ...payload, page: pageToFetch };
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("ns_token");
       const headers = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
@@ -207,7 +207,7 @@ export default function Research({ t, toast }) {
     setActSummary(null);
     setActLoading(true);
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("ns_token");
       const headers = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
 

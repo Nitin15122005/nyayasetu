@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { PageTitle, Card, Btn, Input, Ic, ICONS, Tag } from "../components/UI";
 
 const API_BASE = "http://localhost:8001/api";
-const getToken = () => localStorage.getItem("token") || "dev-token";
+const getToken = () => localStorage.getItem("ns_token") || "";
 
 const api = {
   async fetchWithAuth(url, options = {}) {
