@@ -1,0 +1,9 @@
+Coverage Dimension,Covered,Total (in-benchmark denominator),Coverage %
+BNS sections (retrieval-indexed),13,358,3.63%
+BNSS sections (retrieval-indexed),25,531,4.71%
+BSA sections (retrieval-indexed),8,170,4.71%
+Combined new-code sections (BNS+BNSS+BSA),46,1059,4.34%
+ChromaDB chunk coverage (retrieval.jsonl),46,3254,1.41%
+Corpus citation instances matched to known mapping,3,9,33.3%
+Document coverage (deep-processed / inventoried),94,4020,2.34%
+Language coverage (real content / supported),2,13,15.4%

@@ -1,0 +1,27 @@
+Metric,Value
+Total source documents inventoried (external corpus),4020
+Total source documents (phase-1 in-repo fixtures),1
+Total documents deep-processed (external corpus),94
+Total documents deep-processed (all sources),95
+Total benchmark records,477
+Number of datasets,9
+Number of document categories (external corpus),6
+Number of document-type labels observed in document_analysis,6
+Number of supported languages (system-wide),13
+Number of languages with real content in NSLB,2
+Number of distinct IPC sections (verified mapping),171
+Number of distinct CrPC sections (verified mapping),12
+Number of distinct IEA sections (verified mapping),2
+Number of distinct BNS target sections,148
+Number of distinct BNSS target sections,12
+Number of distinct BSA target sections,2
+Number of abolished (decriminalized) sections,2
+Number of retrieval queries,46
+Number of QA pairs,67
+Number of document-analysis records,90
+Number of IPC->BNS mapping records,185
+Number of multilingual records,12
+Number of robustness records,11
+Number of end-to-end evaluation cases,11
+Number of research queries,43
+Number of translation records,12

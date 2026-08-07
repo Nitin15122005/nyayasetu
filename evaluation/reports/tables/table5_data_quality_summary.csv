@@ -1,0 +1,11 @@
+Quality Metric,Count
+Duplicate records removed (generation-time),5
+Duplicate content records removed (validation-time),9
+Invalid records rejected by schema loader,0
+Records with missing metadata (tags/notes),0
+Records with missing citations,0
+Contradictory IPC->BNS mappings,0
+Duplicate ids (current),0
+Duplicate QA content (current),0
+Total records checked,477
+Validation success rate,100.0%

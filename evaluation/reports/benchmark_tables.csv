@@ -1,0 +1,76 @@
+Table 1: Benchmark Overview
+Metric,Value
+Total source documents inventoried (external corpus),4020
+Total source documents (phase-1 in-repo fixtures),1
+Total documents deep-processed (external corpus),94
+Total documents deep-processed (all sources),95
+Total benchmark records,477
+Number of datasets,9
+Number of document categories (external corpus),6
+Number of document-type labels observed in document_analysis,6
+Number of supported languages (system-wide),13
+Number of languages with real content in NSLB,2
+Number of distinct IPC sections (verified mapping),171
+Number of distinct CrPC sections (verified mapping),12
+Number of distinct IEA sections (verified mapping),2
+Number of distinct BNS target sections,148
+Number of distinct BNSS target sections,12
+Number of distinct BSA target sections,2
+Number of abolished (decriminalized) sections,2
+Number of retrieval queries,46
+Number of QA pairs,67
+Number of document-analysis records,90
+Number of IPC->BNS mapping records,185
+Number of multilingual records,12
+Number of robustness records,11
+Number of end-to-end evaluation cases,11
+Number of research queries,43
+Number of translation records,12
+
+Table 2: Corpus Statistics
+Category,Documents,Avg Pages,Median Pages,Min Pages,Max Pages,OCR-Required,Empty,Unreadable,Top Language
+Affidavit,39,23.87,21,13,70,31,31,0,unknown
+Bail_Application,1,66,66,66,66,0,0,0,en
+Court_Notice,39,27.95,26,7,76,0,0,0,en
+FIR,193,6.88,6,6,20,0,0,0,mr
+Legal_Notice,3747,6.33,3,1,104,0,0,0,en
+Property_Deed,1,25,25,25,25,1,1,0,unknown
+**TOTAL**,4020,6.75,3.0,1,104,32,32,0,-
+
+Table 3: Dataset Distribution
+Dataset,Records,% of Benchmark,Phase-1,Corpus-Expansion,Avg Fields Populated,Completeness %,Validation Status
+ipc_bns_mapping,185,38.78%,185,0,7.0,87.5%,PASS
+retrieval,46,9.64%,46,0,5.0,83.3%,PASS
+document_analysis,90,18.87%,1,89,5.08,72.5%,PASS
+legal_qa,67,14.05%,8,59,7.85,98.1%,PASS
+end_to_end,11,2.31%,2,9,6.82,97.4%,PASS
+translation,12,2.52%,12,0,6.0,75.0%,PASS
+multilingual,12,2.52%,12,0,7.0,77.8%,PASS
+robustness,11,2.31%,8,3,6.27,89.6%,PASS
+research,43,9.01%,18,25,5.02,83.7%,PASS
+**TOTAL**,477,100%,292,185,-,-,-
+
+Table 4: Coverage Analysis
+Coverage Dimension,Covered,Total (in-benchmark denominator),Coverage %
+BNS sections (retrieval-indexed),13,358,3.63%
+BNSS sections (retrieval-indexed),25,531,4.71%
+BSA sections (retrieval-indexed),8,170,4.71%
+Combined new-code sections (BNS+BNSS+BSA),46,1059,4.34%
+ChromaDB chunk coverage (retrieval.jsonl),46,3254,1.41%
+Corpus citation instances matched to known mapping,3,9,33.3%
+Document coverage (deep-processed / inventoried),94,4020,2.34%
+Language coverage (real content / supported),2,13,15.4%
+
+Table 5: Data Quality Summary
+Quality Metric,Count
+Duplicate records removed (generation-time),5
+Duplicate content records removed (validation-time),9
+Invalid records rejected by schema loader,0
+Records with missing metadata (tags/notes),0
+Records with missing citations,0
+Contradictory IPC->BNS mappings,0
+Duplicate ids (current),0
+Duplicate QA content (current),0
+Total records checked,477
+Validation success rate,100.0%
+

@@ -1,0 +1,8 @@
+Category,Documents,Avg Pages,Median Pages,Min Pages,Max Pages,OCR-Required,Empty,Unreadable,Top Language
+Affidavit,39,23.87,21,13,70,31,31,0,unknown
+Bail_Application,1,66,66,66,66,0,0,0,en
+Court_Notice,39,27.95,26,7,76,0,0,0,en
+FIR,193,6.88,6,6,20,0,0,0,mr
+Legal_Notice,3747,6.33,3,1,104,0,0,0,en
+Property_Deed,1,25,25,25,25,1,1,0,unknown
+**TOTAL**,4020,6.75,3.0,1,104,32,32,0,-

@@ -1,0 +1,11 @@
+Dataset,Records,% of Benchmark,Phase-1,Corpus-Expansion,Avg Fields Populated,Completeness %,Validation Status
+ipc_bns_mapping,185,38.78%,185,0,7.0,87.5%,PASS
+retrieval,46,9.64%,46,0,5.0,83.3%,PASS
+document_analysis,90,18.87%,1,89,5.08,72.5%,PASS
+legal_qa,67,14.05%,8,59,7.85,98.1%,PASS
+end_to_end,11,2.31%,2,9,6.82,97.4%,PASS
+translation,12,2.52%,12,0,6.0,75.0%,PASS
+multilingual,12,2.52%,12,0,7.0,77.8%,PASS
+robustness,11,2.31%,8,3,6.27,89.6%,PASS
+research,43,9.01%,18,25,5.02,83.7%,PASS
+**TOTAL**,477,100%,292,185,-,-,-

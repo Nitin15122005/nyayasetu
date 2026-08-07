@@ -1,0 +1,307 @@
+{
+  "overview": {
+    "total_source_documents_inventoried_external_corpus": 4020,
+    "total_source_documents_phase1_fixtures": 1,
+    "total_documents_deep_processed_external_corpus": 94,
+    "total_documents_deep_processed_all": 95,
+    "distinct_documents_referenced_in_provenance": 93,
+    "total_benchmark_records": 477,
+    "number_of_datasets": 9,
+    "number_of_corpus_document_categories": 6,
+    "corpus_document_categories": [
+      "Affidavit",
+      "Bail_Application",
+      "Court_Notice",
+      "FIR",
+      "Legal_Notice",
+      "Property_Deed"
+    ],
+    "number_of_document_analysis_type_labels_observed": 6,
+    "document_analysis_type_labels_observed": [
+      "Employment Contract",
+      "FIR / Police Complaint",
+      "General Legal Document",
+      "Legal Notice / Court Document",
+      "Rental Agreement",
+      "Sale Agreement"
+    ],
+    "number_of_supported_languages": 13,
+    "number_of_languages_with_real_content": 2,
+    "languages_with_real_content": [
+      "en",
+      "mr"
+    ],
+    "number_of_distinct_ipc_sections": 171,
+    "number_of_distinct_crpc_sections": 12,
+    "number_of_distinct_iea_sections": 2,
+    "number_of_distinct_bns_target_sections": 148,
+    "number_of_distinct_bnss_target_sections": 12,
+    "number_of_distinct_bsa_target_sections": 2,
+    "number_of_abolished_sections": 2,
+    "number_of_retrieval_queries": 46,
+    "number_of_qa_pairs": 67,
+    "number_of_document_analysis_records": 90,
+    "number_of_mapping_records": 185,
+    "number_of_multilingual_records": 12,
+    "number_of_robustness_records": 11,
+    "number_of_end_to_end_cases": 11,
+    "number_of_research_queries": 43,
+    "number_of_translation_records": 12
+  },
+  "corpus_statistics": {
+    "category_table": {
+      "Affidavit": {
+        "total_documents": 39,
+        "page_stats": {
+          "avg": 23.87,
+          "median": 21,
+          "min": 13,
+          "max": 70,
+          "n": 39
+        },
+        "language_distribution": {
+          "en": 8,
+          "unknown": 31
+        },
+        "ocr_required": 31,
+        "unreadable_corrupted": 0,
+        "empty_documents": 31
+      },
+      "Bail_Application": {
+        "total_documents": 1,
+        "page_stats": {
+          "avg": 66,
+          "median": 66,
+          "min": 66,
+          "max": 66,
+          "n": 1
+        },
+        "language_distribution": {
+          "en": 1
+        },
+        "ocr_required": 0,
+        "unreadable_corrupted": 0,
+        "empty_documents": 0
+      },
+      "Court_Notice": {
+        "total_documents": 39,
+        "page_stats": {
+          "avg": 27.95,
+          "median": 26,
+          "min": 7,
+          "max": 76,
+          "n": 39
+        },
+        "language_distribution": {
+          "en": 39
+        },
+        "ocr_required": 0,
+        "unreadable_corrupted": 0,
+        "empty_documents": 0
+      },
+      "FIR": {
+        "total_documents": 193,
+        "page_stats": {
+          "avg": 6.88,
+          "median": 6,
+          "min": 6,
+          "max": 20,
+          "n": 193
+        },
+        "language_distribution": {
+          "mr": 193
+        },
+        "ocr_required": 0,
+        "unreadable_corrupted": 0,
+        "empty_documents": 0
+      },
+      "Legal_Notice": {
+        "total_documents": 3747,
+        "page_stats": {
+          "avg": 6.33,
+          "median": 3,
+          "min": 1,
+          "max": 104,
+          "n": 3747
+        },
+        "language_distribution": {
+          "en": 3746,
+          "mr": 1
+        },
+        "ocr_required": 0,
+        "unreadable_corrupted": 0,
+        "empty_documents": 0
+      },
+      "Property_Deed": {
+        "total_documents": 1,
+        "page_stats": {
+          "avg": 25,
+          "median": 25,
+          "min": 25,
+          "max": 25,
+          "n": 1
+        },
+        "language_distribution": {
+          "unknown": 1
+        },
+        "ocr_required": 1,
+        "unreadable_corrupted": 0,
+        "empty_documents": 1
+      }
+    },
+    "overall_page_stats": {
+      "avg": 6.75,
+      "median": 3.0,
+      "min": 1,
+      "max": 104,
+      "n": 4020
+    },
+    "overall_language_distribution": {
+      "en": 3794,
+      "unknown": 32,
+      "mr": 194
+    },
+    "overall_ocr_required": 32,
+    "overall_unreadable_corrupted": 0,
+    "overall_empty_documents": 32,
+    "exact_duplicate_groups": 19,
+    "exact_duplicate_files_total": 89,
+    "total_inventoried": 4020
+  },
+  "dataset_statistics": {
+    "ipc_bns_mapping": {
+      "n_records": 185,
+      "pct_of_total_benchmark": 38.78,
+      "n_phase1_records": 185,
+      "n_corpus_expansion_records": 0,
+      "n_schema_fields": 9,
+      "avg_fields_populated_per_record": 7.0,
+      "completeness_pct": 87.5,
+      "distinct_source_documents_via_provenance": 0,
+      "distinct_fixture_files_referenced": 0
+    },
+    "retrieval": {
+      "n_records": 46,
+      "pct_of_total_benchmark": 9.64,
+      "n_phase1_records": 46,
+      "n_corpus_expansion_records": 0,
+      "n_schema_fields": 7,
+      "avg_fields_populated_per_record": 5.0,
+      "completeness_pct": 83.3,
+      "distinct_source_documents_via_provenance": 0,
+      "distinct_fixture_files_referenced": 0
+    },
+    "document_analysis": {
+      "n_records": 90,
+      "pct_of_total_benchmark": 18.87,
+      "n_phase1_records": 1,
+      "n_corpus_expansion_records": 89,
+      "n_schema_fields": 8,
+      "avg_fields_populated_per_record": 5.08,
+      "completeness_pct": 72.5,
+      "distinct_source_documents_via_provenance": 89,
+      "distinct_fixture_files_referenced": 1
+    },
+    "legal_qa": {
+      "n_records": 67,
+      "pct_of_total_benchmark": 14.05,
+      "n_phase1_records": 8,
+      "n_corpus_expansion_records": 59,
+      "n_schema_fields": 9,
+      "avg_fields_populated_per_record": 7.85,
+      "completeness_pct": 98.1,
+      "distinct_source_documents_via_provenance": 51,
+      "distinct_fixture_files_referenced": 1
+    },
+    "end_to_end": {
+      "n_records": 11,
+      "pct_of_total_benchmark": 2.31,
+      "n_phase1_records": 2,
+      "n_corpus_expansion_records": 9,
+      "n_schema_fields": 8,
+      "avg_fields_populated_per_record": 6.82,
+      "completeness_pct": 97.4,
+      "distinct_source_documents_via_provenance": 9,
+      "distinct_fixture_files_referenced": 1
+    },
+    "translation": {
+      "n_records": 12,
+      "pct_of_total_benchmark": 2.52,
+      "n_phase1_records": 12,
+      "n_corpus_expansion_records": 0,
+      "n_schema_fields": 9,
+      "avg_fields_populated_per_record": 6.0,
+      "completeness_pct": 75.0,
+      "distinct_source_documents_via_provenance": 0,
+      "distinct_fixture_files_referenced": 0
+    },
+    "multilingual": {
+      "n_records": 12,
+      "pct_of_total_benchmark": 2.52,
+      "n_phase1_records": 12,
+      "n_corpus_expansion_records": 0,
+      "n_schema_fields": 10,
+      "avg_fields_populated_per_record": 7.0,
+      "completeness_pct": 77.8,
+      "distinct_source_documents_via_provenance": 0,
+      "distinct_fixture_files_referenced": 0
+    },
+    "robustness": {
+      "n_records": 11,
+      "pct_of_total_benchmark": 2.31,
+      "n_phase1_records": 8,
+      "n_corpus_expansion_records": 3,
+      "n_schema_fields": 8,
+      "avg_fields_populated_per_record": 6.27,
+      "completeness_pct": 89.6,
+      "distinct_source_documents_via_provenance": 3,
+      "distinct_fixture_files_referenced": 0
+    },
+    "research": {
+      "n_records": 43,
+      "pct_of_total_benchmark": 9.01,
+      "n_phase1_records": 18,
+      "n_corpus_expansion_records": 25,
+      "n_schema_fields": 7,
+      "avg_fields_populated_per_record": 5.02,
+      "completeness_pct": 83.7,
+      "distinct_source_documents_via_provenance": 25,
+      "distinct_fixture_files_referenced": 0
+    }
+  },
+  "coverage": {
+    "ipc_sections_with_verified_mapping": 171,
+    "bns_sections_covered_in_retrieval": 13,
+    "bns_total_sections_per_own_repeal_clause": 358,
+    "bns_section_coverage_pct": 3.63,
+    "bnss_sections_covered_in_retrieval": 25,
+    "bnss_total_sections_per_own_repeal_clause": 531,
+    "bnss_section_coverage_pct": 4.71,
+    "bsa_sections_covered_in_retrieval": 8,
+    "bsa_total_sections_per_own_repeal_clause": 170,
+    "bsa_section_coverage_pct": 4.71,
+    "combined_new_code_sections_covered": 46,
+    "combined_new_code_total_sections": 1059,
+    "combined_new_code_coverage_pct": 4.34,
+    "retrieval_chunk_coverage_of_3254_chunk_collection_pct": 1.41,
+    "corpus_citation_instances_found": 9,
+    "corpus_citations_matched_to_known_mapping": 3,
+    "corpus_citation_match_rate_pct": 33.3,
+    "document_coverage_pct_of_inventoried_corpus": 2.34,
+    "language_coverage_count": 2,
+    "language_coverage_of_supported_pct": 15.4,
+    "note_on_denominators": "BNS/BNSS/BSA total-section counts (358/531/170) are taken from each act's OWN repeal clause, already extracted verbatim and stored in retrieval.jsonl (ids retr_bns_358, retr_bnss_531, retr_bsa_170) — not an external fact. No authoritative total-section count for IPC/CrPC/IEA exists anywhere in this project, so no IPC/CrPC/IEA coverage percentage is reported — only the absolute count of sections with a verified mapping."
+  },
+  "data_quality": {
+    "duplicate_records_removed_during_build": 5,
+    "duplicate_content_records_removed_at_validation": 9,
+    "invalid_records_rejected_by_loader": 0,
+    "missing_metadata_records_current": 0,
+    "missing_citation_records_current": 0,
+    "contradictory_mappings_current": 0,
+    "duplicate_ids_current": 0,
+    "duplicate_qa_content_current": 0,
+    "total_records_checked": 477,
+    "validation_success_rate_pct": 100.0
+  }
+}
