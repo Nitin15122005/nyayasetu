@@ -1,0 +1,2 @@
+// TEMPLATE — illustrates the required shape for evaluation/datasets/raw/end_to_end.jsonl
+{"id": "e2e_0001", "file_path": "PLACEHOLDER — e.g. fixtures/fir_marathi_01.pdf", "source_lang": "mr", "question": "PLACEHOLDER — a follow-up question the full pipeline should be able to answer", "expected_stages": ["translate", "analyze", "compliance", "qa"], "tags": ["placeholder"]}

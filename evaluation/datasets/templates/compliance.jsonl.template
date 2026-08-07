@@ -1,0 +1,2 @@
+// TEMPLATE — illustrates the required shape for evaluation/datasets/raw/compliance.jsonl
+{"id": "comp_0001", "text": "PLACEHOLDER — full document text mixing IPC and BNS references", "expected_score_min": 0, "expected_score_max": 100, "expected_grade": null, "tags": ["placeholder"]}

@@ -1,0 +1,4 @@
+// TEMPLATE — illustrates the required shape for evaluation/datasets/raw/retrieval.jsonl
+// relevant_chunk_ids are real ChromaDB ids from data/chromadb (nyayasetu_legal collection) —
+// look them up with `coll.get(...)` and confirm relevance by hand before adding them here.
+{"id": "ret_0001", "query": "PLACEHOLDER — e.g. IPC Section 302 equivalent BNS BNSS BSA new law", "relevant_chunk_ids": ["PLACEHOLDER_CHROMADB_ID"], "relevance_grades": {"PLACEHOLDER_CHROMADB_ID": 2}, "tags": ["placeholder"]}

@@ -1,0 +1,2 @@
+// TEMPLATE — illustrates the required shape for evaluation/datasets/raw/legal_qa.jsonl
+{"id": "qa_0001", "file_path": "PLACEHOLDER — e.g. fixtures/fir_sample_01.pdf", "question": "PLACEHOLDER — e.g. What is the complainant's name?", "reference_answer": "PLACEHOLDER — human-verified answer", "must_contain": [], "should_refuse": false, "tags": ["placeholder"]}

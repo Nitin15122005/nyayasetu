@@ -1,0 +1,12 @@
+suite: end_to_end
+description: >
+  Full request traces across multiple stages, mirroring the Phase 2
+  manual pipeline trace but scored automatically: upload a non-English
+  document -> translate -> analyze -> compliance-check -> Q&A, and verify
+  every stage actually ran (not silently skipped) with a sane output.
+dataset_file: end_to_end.jsonl
+sample_limit: null
+metrics: [stage_completion_rate, stage_latency_breakdown, final_output_validity]
+repeat: 1
+params:
+  pipeline_stages: [translate, analyze, compliance, qa]

@@ -1,0 +1,4 @@
+// TEMPLATE — illustrates the required shape for evaluation/datasets/raw/translation.jsonl
+// This is NOT a real evaluation dataset. Every value below is a placeholder.
+// Copy this file to ../raw/translation.jsonl and replace with real, reviewed records.
+{"id": "trans_0001", "source_text": "PLACEHOLDER — real Marathi/Hindi legal source text goes here", "source_lang": "mr", "target_lang": "en", "reference_translation": "PLACEHOLDER — human-verified reference translation", "expected_engine": null, "tags": ["placeholder"], "notes": "template row, not real data"}

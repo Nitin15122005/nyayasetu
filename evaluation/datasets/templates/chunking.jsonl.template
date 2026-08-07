@@ -1,0 +1,3 @@
+// TEMPLATE — illustrates the required shape for evaluation/datasets/raw/chunking.jsonl
+// source_pdf is relative to data/statutes/ (or a dedicated eval fixtures dir).
+{"id": "chunk_0001", "source_pdf": "PLACEHOLDER — e.g. BNS.pdf", "expected_min_chunks": null, "expected_max_chunks": null, "tags": ["placeholder"]}

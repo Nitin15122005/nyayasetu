@@ -1,0 +1,15 @@
+# evaluation/config/defaults.yaml
+# Environment-level defaults shared by every experiment suite.
+# Override any of these per-machine with environment variables (see
+# evaluation/harness/client.py) rather than editing this file, so the
+# committed defaults stay reproducible across machines.
+
+backend_base_url: "http://localhost:8001"
+notebook_base_url_env: "COLAB_BASE_URL"   # falls back to backend/colab_config.py's value if unset
+request_timeout_s: 30.0
+colab_timeout_s: 120.0
+random_seed: 42
+results_dir: "evaluation/results/runs"
+datasets_dir: "evaluation/datasets/raw"
+log_level: "INFO"
+max_concurrency: 4

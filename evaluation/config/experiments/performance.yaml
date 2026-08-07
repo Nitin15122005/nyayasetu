@@ -1,0 +1,14 @@
+suite: performance
+description: >
+  Latency, throughput, and memory under concurrent load. Replays a
+  workload spec (endpoint + payload template + concurrency + duration)
+  rather than needing its own gold-labeled dataset — reuses request
+  bodies from other suites' datasets where convenient.
+dataset_file: performance_workload.jsonl
+sample_limit: null
+metrics: [latency_p50, latency_p95, latency_p99, throughput_rps, error_rate, peak_memory_mb]
+repeat: 1
+params:
+  concurrency_levels: [1, 4, 8]
+  duration_s: 30
+  warmup_requests: 3

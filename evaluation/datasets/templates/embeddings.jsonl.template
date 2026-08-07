@@ -1,0 +1,4 @@
+// TEMPLATE — illustrates the required shape for evaluation/datasets/raw/embeddings.jsonl
+// Not real data. `expect_close_to` / `expect_far_from` reference another record's `id`.
+{"id": "emb_0001", "text": "PLACEHOLDER — e.g. a rental agreement clause about security deposit", "expect_close_to": "emb_0002", "tags": ["placeholder"]}
+{"id": "emb_0002", "text": "PLACEHOLDER — a paraphrase of emb_0001's clause", "expect_close_to": "emb_0001", "tags": ["placeholder"]}

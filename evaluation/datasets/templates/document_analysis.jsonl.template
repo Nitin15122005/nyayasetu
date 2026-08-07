@@ -1,0 +1,3 @@
+// TEMPLATE — illustrates the required shape for evaluation/datasets/raw/document_analysis.jsonl
+// file_path is relative to evaluation/datasets/raw/fixtures/ (create that dir when populating).
+{"id": "doc_0001", "file_path": "PLACEHOLDER — e.g. fixtures/rental_agreement_01.pdf", "expected_document_type": "PLACEHOLDER — e.g. rental_agreement", "expected_overall_risk": null, "expected_missing_clauses": [], "tags": ["placeholder"]}

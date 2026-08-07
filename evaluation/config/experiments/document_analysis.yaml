@@ -1,0 +1,12 @@
+suite: document_analysis
+description: >
+  Evaluates the full document analyzer pipeline via POST /api/analyze —
+  document type classification, clause risk scoring, missing-clause
+  detection, and overall risk verdict — against human-labeled documents.
+dataset_file: document_analysis.jsonl
+sample_limit: null
+metrics: [doc_type_accuracy, risk_level_agreement, missing_clause_f1, verdict_agreement, latency_ms]
+repeat: 1
+params:
+  endpoint: /api/analyze
+  accepts_file_upload: true

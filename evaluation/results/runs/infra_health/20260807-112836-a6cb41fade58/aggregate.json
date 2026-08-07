@@ -1,0 +1,50 @@
+{
+  "availability": {
+    "name": "availability",
+    "value": 0.2,
+    "n": 5,
+    "details": {
+      "backend_health": {
+        "healthy": false,
+        "status_code": -1,
+        "body": null
+      },
+      "notebook_health": {
+        "healthy": false,
+        "status_code": 404,
+        "body": null,
+        "note": "Colab notebooks use ephemeral ngrok URLs \u2014 a failure here often just means the notebook isn't currently running, not a code defect."
+      },
+      "required_env_vars": {
+        "healthy": false,
+        "present": {
+          "GROQ_API_KEY": false,
+          "GEMINI_API_KEY": false,
+          "JWT_SECRET_KEY": false
+        }
+      },
+      "chromadb_reachable": {
+        "healthy": false
+      },
+      "database_reachable": {
+        "healthy": true,
+        "user_count": 2,
+        "db_path": "D:\\Programs\\nyayasetu\\backend\\nyayasetu.db"
+      }
+    }
+  },
+  "latency_ms": {
+    "name": "latency_ms",
+    "value": 1555.4866600083187,
+    "n": 5,
+    "details": {
+      "per_check": {
+        "backend_health": 4105.3345000837,
+        "notebook_health": 57.23889998625964,
+        "required_env_vars": 0.0,
+        "chromadb_reachable": 3614.2222000053152,
+        "database_reachable": 0.6376999663189054
+      }
+    }
+  }
+}

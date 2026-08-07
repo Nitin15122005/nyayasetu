@@ -1,0 +1,13 @@
+suite: research
+description: >
+  Evaluates the case-law research features (POST /api/research/ask, which
+  fetches IndianKanoon results and has Groq synthesize a cited answer).
+  This suite's "retrieval" is an external search API, not the internal
+  ChromaDB RAG — scored separately from the retrieval.yaml suite for
+  exactly that reason.
+dataset_file: research.jsonl
+sample_limit: null
+metrics: [citation_validity, citation_count, answer_relevancy, latency_ms]
+repeat: 1
+params:
+  endpoint: /api/research/ask

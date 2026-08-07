@@ -1,0 +1,13 @@
+suite: summarization
+description: >
+  Evaluates document_analyzer.py's summarize_document() — Colab BART
+  first, Groq fallback — via the summary field returned by POST
+  /api/analyze. Tracks which engine answered, same rationale as the
+  translation suite.
+dataset_file: summarization.jsonl
+sample_limit: null
+metrics: [rouge_l, length_compliance, engine_distribution, latency_ms]
+repeat: 1
+params:
+  endpoint: /api/analyze
+  track_engine: true

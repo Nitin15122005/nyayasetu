@@ -1,0 +1,13 @@
+suite: compliance
+description: >
+  Evaluates the compliance SCORE/GRADE computation as a whole (not just
+  the section-mapping tier) via POST /api/compliance — i.e. does the
+  final score/grade match what a human reviewer would assign for a given
+  document, including the regex-based new-reference counting that runs
+  independently of RAG/AI.
+dataset_file: compliance.jsonl
+sample_limit: null
+metrics: [score_mae, grade_exact_match, grade_within_one_band, latency_ms]
+repeat: 1
+params:
+  endpoint: /api/compliance

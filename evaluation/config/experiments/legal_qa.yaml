@@ -1,0 +1,16 @@
+suite: legal_qa
+description: >
+  Evaluates per-document follow-up Q&A (DocumentRAG.answer(), in-memory
+  retrieval + Groq) via POST /api/analyze then POST /api/qa. Each record
+  uploads a document, then asks one or more questions against the
+  resulting session.
+dataset_file: legal_qa.jsonl
+sample_limit: null
+metrics: [answer_correctness, groundedness, refusal_appropriateness, confidence_calibration, latency_ms]
+repeat: 1
+params:
+  endpoints: [/api/analyze, /api/qa]
+  # Optional: use RAGAS's faithfulness/answer_relevancy if the `ragas`
+  # extra is installed (see evaluation/metrics/ragas_adapter.py); falls
+  # back to the custom groundedness heuristic otherwise.
+  use_ragas_if_available: true

@@ -1,0 +1,2 @@
+// TEMPLATE — illustrates the required shape for evaluation/datasets/raw/summarization.jsonl
+{"id": "sum_0001", "source_text": "PLACEHOLDER — long English legal text", "reference_summary": "PLACEHOLDER — human-written reference summary", "max_length": 200, "tags": ["placeholder"]}

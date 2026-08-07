@@ -1,0 +1,4 @@
+// TEMPLATE — illustrates the required shape for evaluation/datasets/raw/robustness.jsonl
+// expected_behavior is a contract, not a guess — decide up front what SHOULD happen.
+{"id": "rob_0001", "category": "empty_input", "endpoint": "/api/translate", "payload": {"text": ""}, "expected_behavior": "clean_4xx", "tags": ["placeholder"]}
+{"id": "rob_0002", "category": "wrong_file_type", "endpoint": "/api/analyze", "payload": {"filename": "not_a_document.exe"}, "expected_behavior": "clean_4xx", "tags": ["placeholder"]}

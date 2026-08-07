@@ -1,0 +1,16 @@
+suite: retrieval
+description: >
+  Evaluates the statute ChromaDB RAG tier (backend/lex_validator.py's
+  RAGMapping) directly against data/chromadb — standard IR metrics against
+  a labeled relevant-chunk set. This is retrieval quality in isolation,
+  independent of the Groq extraction step downstream (see ipc_bns_mapping
+  suite for the full tier).
+dataset_file: retrieval.jsonl
+sample_limit: null
+metrics: [precision_at_k, recall_at_k, mrr, ndcg_at_k, latency_ms]
+repeat: 1
+params:
+  adapter: direct
+  collection: nyayasetu_legal
+  chroma_dir: data/chromadb
+  top_k: 3

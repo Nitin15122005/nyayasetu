@@ -1,0 +1,42 @@
+# {{ title }}
+
+Generated {{ generated_at }} · {{ suites | length }} suite(s)
+
+{% for s in suites %}
+## {{ s.suite }}
+
+{{ s.description }}
+
+**Run:** `{{ s.run_id }}` · **Status:** {{ s.status }} · **Records:** {{ s.n_records }} ({{ s.n_errors }} error{{ 's' if s.n_errors != 1 else '' }})
+**Code:** `{{ s.git_commit or 'unknown' }}`{% if s.git_dirty %} (uncommitted changes present){% endif %} · **Config hash:** `{{ s.config_hash }}`
+
+### Metrics
+
+| Metric | Value | N |
+|---|---|---|
+{% for m in s.metrics -%}
+| {{ m.name }} | {{ m.value_str }} | {{ m.n }} |
+{% endfor %}
+
+{% if s.figures %}
+### Figures
+
+{% for fig in s.figures -%}
+![{{ fig.caption }}]({{ fig.rel_path }})
+
+{% endfor %}
+{% endif %}
+{% if s.notes %}
+### Notes
+
+{% for note in s.notes -%}
+- {{ note }}
+{% endfor %}
+{% endif %}
+
+---
+{% endfor %}
+
+## Reproducibility
+
+Every run's `manifest.json` (under `evaluation/results/runs/<suite>/<run_id>/`) records the exact config hash, git commit, and package versions that produced it — re-run with the same config against the same commit to reproduce a result, or diff two manifests to see exactly what changed between two reports.

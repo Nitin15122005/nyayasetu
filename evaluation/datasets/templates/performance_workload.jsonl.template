@@ -1,0 +1,3 @@
+// TEMPLATE — illustrates the required shape for evaluation/datasets/raw/performance_workload.jsonl
+// `weight` controls relative frequency when the workload is a mix of endpoints.
+{"id": "perf_0001", "endpoint": "/api/compliance", "payload": {"text": "PLACEHOLDER — representative request body"}, "weight": 1.0, "tags": ["placeholder"]}

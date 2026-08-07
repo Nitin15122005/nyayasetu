@@ -1,0 +1,2 @@
+// TEMPLATE — illustrates the required shape for evaluation/datasets/raw/research.jsonl
+{"id": "res_0001", "query": "PLACEHOLDER — e.g. anticipatory bail conditions under BNSS", "min_citations": 1, "expected_topics": [], "tags": ["placeholder"]}

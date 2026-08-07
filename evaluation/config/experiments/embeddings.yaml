@@ -1,0 +1,12 @@
+suite: embeddings
+description: >
+  Evaluates the Colab-hosted /embed endpoint directly (bypassing the
+  backend), via backend/local_models.embed_texts(). Checks dimension
+  consistency, determinism, and semantic-neighbor sanity.
+dataset_file: embeddings.jsonl
+sample_limit: null
+metrics: [dimension_consistency, cosine_self_similarity, neighbor_sanity, latency_ms]
+repeat: 2   # run twice per text to check determinism
+params:
+  client: notebook_direct   # calls the notebook's /embed directly, not through a backend route
+  expected_dim: 384

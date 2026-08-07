@@ -1,0 +1,15 @@
+suite: infra_health
+description: >
+  Pre-flight checks: backend reachable, notebook (Colab/ngrok) reachable,
+  required env vars set, database reachable. Run this first — every other
+  suite assumes the system is at least minimally up.
+dataset_file: null   # checklist-driven, not dataset-driven
+metrics: [availability, latency_ms]
+repeat: 1
+params:
+  checks:
+    - backend_health          # GET /api/health
+    - notebook_health          # GET <COLAB_BASE_URL>/health
+    - required_env_vars        # GROQ_API_KEY, GEMINI_API_KEY, JWT_SECRET_KEY
+    - chromadb_reachable        # data/chromadb collection loads and has >0 chunks
+    - database_reachable        # backend/nyayasetu.db opens and `users` table queryable

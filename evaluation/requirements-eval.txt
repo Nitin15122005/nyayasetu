@@ -1,0 +1,31 @@
+# evaluation/requirements-eval.txt
+# Extra dependencies for the evaluation framework only — kept separate
+# from the app's requirements.txt (already messy per the architectural
+# audit) so evaluation tooling doesn't add to that problem, and so a
+# fresh clone can run the app without ever installing eval-only deps.
+#
+#   pip install -r evaluation/requirements-eval.txt
+
+PyYAML>=6.0
+Jinja2>=3.1
+matplotlib>=3.7
+pandas>=2.0
+numpy>=1.24
+scikit-learn>=1.3
+requests>=2.31
+
+# ── Optional, recommended for publication-grade text metrics ────────────────
+# Install separately if needed — see metrics/generation_metrics.py, which
+# falls back to a custom (documented, but non-canonical) implementation
+# when these aren't present:
+#   pip install sacrebleu     # canonical chrF/BLEU
+#   pip install rouge-score   # canonical ROUGE-L
+
+# ── Optional, recommended for RAG-specific LLM-judge metrics ────────────────
+# See metrics/ragas_adapter.py — not imported unless a suite explicitly
+# asks for it (legal_qa.yaml's use_ragas_if_available), and never
+# silently falls back to a fake score if missing:
+#   pip install ragas
+
+# ── Optional, for performance.yaml's process-memory sampling ────────────────
+#   pip install psutil

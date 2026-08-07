@@ -1,0 +1,3 @@
+// TEMPLATE — illustrates the required shape for evaluation/datasets/raw/ipc_bns_mapping.jsonl
+// expected_bns/expected_name should be sourced from the official BNS 2023 gazette text, not guessed.
+{"id": "map_0001", "act": "IPC", "section": "302", "expected_bns": "PLACEHOLDER — e.g. BNS 101", "expected_name": "PLACEHOLDER — e.g. Murder", "text_context": "PLACEHOLDER — sentence containing the reference, as it would appear in a real document", "tags": ["placeholder"]}

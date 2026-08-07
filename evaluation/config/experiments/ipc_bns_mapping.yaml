@@ -1,0 +1,14 @@
+suite: ipc_bns_mapping
+description: >
+  End-to-end evaluation of LexValidator.get_mapping()'s full 3-tier
+  cascade (RAG -> hardcoded table -> Groq zero-shot) via POST
+  /api/compliance. Reports accuracy AND which tier answered each record,
+  so a change in tier mix (e.g. the RAGMapping init fix) is visible
+  directly in the results rather than only in aggregate accuracy.
+dataset_file: ipc_bns_mapping.jsonl
+sample_limit: null
+metrics: [exact_match, tier_distribution, confidence_calibration, latency_ms]
+repeat: 1
+params:
+  endpoint: /api/compliance
+  track_tier: true   # rag / hardcoded_table / ai / not_found

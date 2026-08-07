@@ -1,0 +1,17 @@
+suite: confidence
+description: >
+  Cross-cutting calibration analysis — does NOT call the live system
+  itself. Reads the (prediction, confidence, correct?) triples already
+  captured by other suites' result files (ipc_bns_mapping, legal_qa,
+  document_analysis) and computes calibration metrics over them. Run
+  this AFTER the suites it depends on.
+dataset_file: null
+sample_limit: null
+metrics: [expected_calibration_error, brier_score, reliability_bins]
+repeat: 1
+params:
+  source_runs:   # run_ids to pull from; "latest" resolves at run time
+    - { suite: ipc_bns_mapping, run: latest }
+    - { suite: legal_qa,        run: latest }
+    - { suite: document_analysis, run: latest }
+  n_bins: 10

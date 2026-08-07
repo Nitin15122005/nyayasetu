@@ -1,0 +1,12 @@
+suite: robustness
+description: >
+  Adversarial and edge-case inputs (empty text, oversized payloads, wrong
+  file types, non-UTF8 bytes, absurd language codes, simulated upstream
+  outage) — every record encodes what SHOULD happen, so failures are
+  measured against an explicit contract instead of "did it crash".
+dataset_file: robustness.jsonl
+sample_limit: null
+metrics: [graceful_degradation_rate, crash_rate, error_message_quality, latency_ms]
+repeat: 1
+params:
+  categories: [empty_input, oversized_input, wrong_file_type, unsupported_language, malformed_payload, upstream_unavailable]

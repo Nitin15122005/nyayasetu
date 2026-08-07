@@ -1,0 +1,20 @@
+suite: chunking
+description: >
+  Evaluates modules/m2_rag/ingest.py's chunk_pages() in isolation — no
+  HTTP surface exists for this stage, so this suite uses a direct Python
+  import (evaluation/harness/direct_adapter.py) rather than the API client.
+  Checks chunk-size distribution against the embedding model's token
+  budget (documented risk from the Phase 2 handoff: 512-char chunks vs a
+  ~128-token default max_seq_length).
+dataset_file: chunking.jsonl
+sample_limit: null
+metrics: [chunk_count, chunk_length_stats, oversize_chunk_rate, boundary_sanity]
+repeat: 1
+params:
+  adapter: direct
+  target_module: modules.m2_rag.ingest
+  chunk_size: 512
+  chunk_overlap: 50
+  # Rough chars-per-token used only to FLAG risk, not to change chunking.
+  approx_chars_per_token: 4.5
+  embedder_max_seq_length_tokens: 128

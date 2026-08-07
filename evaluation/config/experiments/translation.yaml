@@ -1,0 +1,15 @@
+suite: translation
+description: >
+  Evaluates backend/legal_translator.py's Colab NLLB -> Gemini -> Groq
+  cascade via POST /api/translate. Reports which engine actually answered
+  each record, not just aggregate quality, since the cascade is the point.
+dataset_file: translation.jsonl
+sample_limit: null
+metrics: [chrf, exact_match_engine_expected, engine_distribution, latency_ms]
+repeat: 1
+params:
+  endpoint: /api/translate
+  # If true, also record which cascade tier (nllb-colab / gemini / groq)
+  # answered each record — critical given the notebook chunking caveat
+  # documented in the Phase 2 handoff.
+  track_engine: true
