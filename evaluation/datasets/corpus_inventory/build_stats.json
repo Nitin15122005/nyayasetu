@@ -1,0 +1,46 @@
+{
+  "documents_seen": 94,
+  "documents_processed": 94,
+  "documents_skipped_unreadable": 0,
+  "records_generated": {
+    "document_analysis": 89,
+    "legal_qa": 68,
+    "end_to_end": 9,
+    "research": 25,
+    "robustness": 3
+  },
+  "records_rejected": {
+    "document_analysis_duplicate_summary": 5
+  },
+  "category_counts": {
+    "Affidavit": 8,
+    "Bail_Application": 1,
+    "Court_Notice": 20,
+    "FIR": 25,
+    "Legal_Notice": 40
+  },
+  "citations_found_total": 9,
+  "citations_matched_ipc_bns_table": 3,
+  "distinct_sections_cited": [
+    "CrPC 417",
+    "IPC 188",
+    "IPC 28",
+    "IPC 3",
+    "IPC 302",
+    "IPC 413",
+    "IPC 448",
+    "IPC 75",
+    "IPC 84"
+  ],
+  "distinct_sections_matched": [
+    "IPC 28",
+    "IPC 302",
+    "IPC 448"
+  ],
+  "language_counts": {
+    "en": 69,
+    "mr": 25
+  },
+  "documents_with_no_citations": 89,
+  "corpus_dir": "D:\\Programs\\raw-pdfs"
+}

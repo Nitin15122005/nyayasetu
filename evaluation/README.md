@@ -1,6 +1,6 @@
 # NyayaSetu Evaluation Framework
 
-Status: **infrastructure only — no evaluation has been run yet.** Every dataset under `datasets/raw/` is empty; `datasets/templates/` shows the format. This document describes the framework that will produce results once real datasets are populated, not results themselves.
+Status: **infrastructure + ground-truth datasets built; no evaluation experiment has been run yet.** `datasets/raw/` now holds 9 real, source-traceable datasets built from the project's own corpus (ChromaDB, `lex_validator.py`'s mapping tables, `legal_kb.json`, the one real sample document) — see `datasets/DATASET_DESIGN.md` for what each one is and `datasets/DATASET_REPORT.md` for current sizes and gaps. `datasets/templates/` still shows the placeholder format for suites without a `build_*.py` script yet (`chunking`, `embeddings`, `compliance`, `summarization`, `performance_workload`). This document describes the framework that will produce results once suites are actually run against these datasets, not results themselves.
 
 ## Why a separate subsystem
 
@@ -161,4 +161,4 @@ python -m evaluation.cli compare --suite ipc_bns_mapping --runs before=<run_id> 
 
 ## What this phase deliberately did not do
 
-No dataset was populated, no suite was run against real data, and no result exists anywhere under `results/runs/`. The only executions during this phase were infrastructure self-tests using clearly-synthetic toy numbers (see `evaluation/SELF_TEST.md`), never NyayaSetu's actual outputs. Populating `datasets/raw/` with reviewed, labeled records — and then running the suites — is the next, separate phase.
+No suite has been run against real data yet, and no evaluation result exists anywhere under `results/runs/` except the `infra_health` pre-flight check (dataset-free by design). `datasets/raw/` is now populated for 9 of the 13 dataset-driven suites — see `datasets/DATASET_DESIGN.md` for each dataset's source of truth and `datasets/DATASET_REPORT.md` for exact counts, distributions, and the specific gaps (mainly: only one real sample document, and only one of 12 supported languages has real source content) that should be closed with additional human-reviewed material before treating results as publication-grade. `chunking`, `embeddings`, `compliance`, and `summarization` still have no populated dataset. Running the suites against what's built now — and populating the remaining 4 — is the next, separate phase.

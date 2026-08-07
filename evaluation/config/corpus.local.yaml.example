@@ -1,0 +1,18 @@
+# evaluation/config/corpus.local.yaml.example
+#
+# Copy this file to evaluation/config/corpus.local.yaml (gitignored — see
+# .gitignore) and set corpus_dir to wherever your external legal-document
+# corpus lives on THIS machine. Never commit the real corpus.local.yaml —
+# the path is machine-specific and the corpus itself may contain documents
+# that shouldn't be redistributed.
+#
+# Resolution order (see evaluation/datasets/build/corpus/config.py):
+#   1. NYAYASETU_CORPUS_DIR environment variable
+#   2. this file (evaluation/config/corpus.local.yaml)
+#   3. neither set -> corpus tooling raises a clear error naming both options
+#
+# corpus_dir must point at a directory whose immediate subdirectories are
+# document-category folders (e.g. FIR/, Affidavit/, Legal_Notice/, ...),
+# each containing PDFs (optionally nested further, e.g. Legal_Notice/data/).
+
+corpus_dir: "D:/path/to/your/external/legal-corpus"

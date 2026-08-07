@@ -24,6 +24,14 @@ class BaseRecord:
     id: str
     tags: list[str] = field(default_factory=list)
     notes: str = ""
+    # Structured traceability back to a source document, for records
+    # derived from a corpus-ingestion pipeline (see
+    # evaluation/datasets/build/corpus/). Empty dict for phase-1 records
+    # built directly from in-repo sources (already fully traceable via
+    # `notes`) — this field is additive and optional, never required.
+    # Keys used by the corpus pipeline: source_file, page, category,
+    # extracted_at (ISO8601), source_citation.
+    provenance: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -115,6 +123,26 @@ class EndToEndRecord(BaseRecord):
 
 
 @dataclass
+class MultilingualRecord(BaseRecord):
+    """
+    Cross-language consistency, not single-pair quality (that's
+    TranslationRecord's job even though the shape is identical here).
+    Every record in multilingual.jsonl holds the SAME source content
+    translated into several of legal_translator.SUPPORTED_LANGUAGES, so a
+    report can ask "does quality hold across all 12 languages" rather than
+    "is this one language pair good". No runner is wired for this suite
+    yet — same documented status as classify/retrieve in the README —
+    reuses translation's HTTP surface (POST /api/translate) when one is.
+    """
+    source_text: str = ""
+    source_lang: str = ""
+    target_lang: str = "en"
+    reference_translation: str = ""
+    expected_engine: Optional[str] = None
+    parallel_group: str = ""        # groups records sharing the same underlying content across languages
+
+
+@dataclass
 class RobustnessRecord(BaseRecord):
     category: str = ""              # matches robustness.yaml's params.categories
     endpoint: str = ""
@@ -131,6 +159,7 @@ class PerformanceWorkloadRecord(BaseRecord):
 
 SCHEMA_REGISTRY: dict[str, type] = {
     "translation": TranslationRecord,
+    "multilingual": MultilingualRecord,
     "embeddings": EmbeddingRecord,
     "chunking": ChunkingRecord,
     "retrieval": RetrievalRecord,

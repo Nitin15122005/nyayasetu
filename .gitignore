@@ -28,3 +28,6 @@ Thumbs.db
 # Logs
 *.log
 uvicorn.log
+
+# Local, machine-specific evaluation corpus config (external corpus path)
+evaluation/config/corpus.local.yaml
