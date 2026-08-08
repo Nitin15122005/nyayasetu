@@ -4,14 +4,15 @@ document_analyzer.py — Core Document Analysis Engine
 NyayaSetu | Team IKS | SPIT CSE 2025-26
 
 Changes from previous version:
-  - DocumentRAG now uses _ColabEmbedder (HTTP calls to Colab /embed endpoint)
-    instead of loading SentenceTransformer locally.
-  - summarize_document calls local_models.summarize_with_bart which is now
-    an HTTP proxy — no other changes needed there.
+  - DocumentRAG now uses _LocalEmbedder, which runs MiniLM in-process on
+    this machine's GPU/CPU (local_ai_models.py) instead of calling out to
+    a Colab notebook over HTTP.
+  - summarize_document calls local_models.summarize_with_bart, which now
+    runs BART in-process too — no other changes needed there.
   - All other logic (clause scoring, RAG Q&A, IndianKanoon, etc.) unchanged.
 
 PARALLEL PIPELINE (v6):
-  - Phase 1: Translation (Colab NLLB → Gemini → Groq) runs concurrently with
+  - Phase 1: Translation (local NLLB → Gemini → Groq) runs concurrently with
              document-type detection & legal section extraction.
   - Phase 2: ALL Groq analysis tasks fire simultaneously via ThreadPoolExecutor.
   - Phase 3: IndianKanoon targeted case-law fetch.
@@ -42,13 +43,15 @@ INDIANKANOON_API_KEY = os.getenv("INDIANKANOON_API_KEY", "")
 
 
 # ─────────────────────────────────────────────────────────────
-# _ColabEmbedder — drop-in replacement for SentenceTransformer
+# _LocalEmbedder — drop-in replacement for SentenceTransformer
 # Used by DocumentRAG so the rest of the class is unchanged.
 # ─────────────────────────────────────────────────────────────
-class _ColabEmbedder:
+class _LocalEmbedder:
     """
     Mimics the SentenceTransformer.encode() API but routes all calls
-    to the Colab inference server via local_models.embed_texts().
+    through local_models.embed_texts(), which now runs MiniLM in-process
+    on this machine's GPU/CPU (see local_ai_models.py) instead of over
+    HTTP to a Colab notebook.
 
     DocumentRAG calls: self.embedder.encode(texts, normalize_embeddings=True,
                                             convert_to_numpy=True)
@@ -59,41 +62,36 @@ class _ColabEmbedder:
         # Lazy import — avoids circular dependency at module level
         import numpy as np
         self._np = np
-        logger.info("[DocRAG] Using Colab embedding server (no local GPU needed).")
+        logger.info("[DocRAG] Using local embedding model (in-process, GPU if available).")
 
     def encode(
         self,
         texts,
-        normalize_embeddings: bool = True,  # accepted, handled server-side
+        normalize_embeddings: bool = True,  # accepted, handled inside local_ai_models
         convert_to_numpy: bool = True,
-        batch_size: int = 32,               # accepted, handled server-side
+        batch_size: int = 32,
         show_progress_bar: bool = False,
         **kwargs,
     ):
         """
-        Encode texts via Colab /embed endpoint.
+        Encode texts via the local embedding model.
         Always returns a numpy float32 array with shape (N, dim).
-        Falls back to a zero matrix if Colab is unreachable so the rest of the
-        analysis pipeline degrades gracefully rather than crashing.
+
+        Deliberately does NOT catch exceptions and fall back to zero
+        vectors. A zero-vector fallback makes every chunk score equally
+        "relevant" during retrieval — that's silent data corruption, not
+        graceful degradation, and it used to mask real problems (e.g. an
+        unreachable Colab server) behind a working-looking answer. Local
+        inference has no network failure mode; if this raises, something
+        is genuinely wrong (bad input, OOM, corrupted model state) and the
+        caller should see a clear error instead of degraded-looking results.
         """
         from local_models import embed_texts
         if isinstance(texts, str):
             texts = [texts]
 
-        try:
-            vecs = embed_texts(texts)
-            arr  = self._np.array(vecs, dtype=self._np.float32)
-            return arr
-        except Exception as e:
-            # Emoji removed deliberately — a literal "⚠️" here can raise
-            # UnicodeEncodeError on Windows' default console codepage,
-            # which would turn this already-degraded zero-fallback path
-            # into a hard crash instead. Message text is unchanged.
-            logger.warning("[DocRAG] Colab embed failed (%s). Using zero fallback.", e)
-            # Return zero vectors — retrieval will score all chunks equally,
-            # which degrades Q&A quality but won't crash the server.
-            dim = 384   # paraphrase-multilingual-MiniLM-L12-v2 dim
-            return self._np.zeros((len(texts), dim), dtype=self._np.float32)
+        vecs = embed_texts(texts, batch_size=batch_size)
+        return self._np.array(vecs, dtype=self._np.float32)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -885,12 +883,12 @@ def fetch_acts(
 class DocumentRAG:
     """
     In-memory vector store for a single uploaded document.
-    Uses _ColabEmbedder — all embedding inference runs on Colab GPU.
+    Uses _LocalEmbedder — all embedding inference runs in-process on this
+    machine's GPU/CPU (no network dependency, no ngrok/Colab required).
     """
 
     def __init__(self):
-        # Use Colab embedder — no local GPU / torch required
-        self.embedder    = _ColabEmbedder()
+        self.embedder    = _LocalEmbedder()
         self.chunks:     list[str]  = []
         self.embeddings             = []
         self.doc_type:   str        = "Legal Document"

@@ -2,8 +2,9 @@
 M2 — RAG Engine: Ingestion Pipeline
 Nyaya-Setu | Team IKS | SPIT CSE 2025-26
 
-Reads statute PDFs from data/statutes/, chunks them, embeds via Colab /embed
-endpoint (ngrok), and stores in ChromaDB.
+Reads statute PDFs from data/statutes/, chunks them, embeds locally via
+local_models.embed_texts() (MiniLM, in-process — see local_ai_models.py),
+and stores in ChromaDB. No Colab/ngrok involved.
 
 Run once from project root:
     python modules/m2_rag/ingest.py
@@ -25,12 +26,12 @@ from tqdm import tqdm
 
 # Import local_models eagerly so we fail fast with a clear message
 try:
-    from local_models import embed_texts as _colab_embed
+    from local_models import embed_texts as _local_embed
 except ModuleNotFoundError:
     raise SystemExit(
         f"[INGEST] ERROR: Cannot import local_models.\n"
         f"  backend dir: {_BACKEND_DIR}\n"
-        f"  Make sure local_models.py exists in backend/ and colab_config.py is set."
+        f"  Make sure local_models.py and local_ai_models.py exist in backend/."
     )
 
 # ── Config ─────────────────────────────────────────────────────────────────────
@@ -39,7 +40,7 @@ CHROMA_DIR    = os.path.join(_ROOT, "data", "chromadb")
 COLLECTION    = "nyayasetu_legal"
 CHUNK_SIZE    = 512
 CHUNK_OVERLAP = 50
-EMBED_BATCH   = 32   # Colab /embed handles batching server-side
+EMBED_BATCH   = 32   # local_models.embed_texts() batches internally
 
 STATUTE_META = {
     "BNS.pdf":      {"act": "Bharatiya Nyaya Sanhita 2023",            "short": "BNS"},
@@ -94,9 +95,9 @@ def chunk_pages(pages: list[dict], filename: str) -> list[dict]:
     return chunks
 
 
-# ── Embed via Colab /embed (ngrok) ──────────────────────────────────────────────
+# ── Embed locally (MiniLM, in-process) ──────────────────────────────────────────
 def embed_batch(texts: list[str]) -> list[list[float]]:
-    return _colab_embed(texts)
+    return _local_embed(texts)
 
 
 # ── Main ingestion ──────────────────────────────────────────────────────────────
@@ -150,7 +151,6 @@ def ingest_all():
                 )
             except Exception as e:
                 print(f"\n  [ERROR] Batch {i//EMBED_BATCH + 1} failed: {e}")
-                print("  Make sure your Colab ngrok server is running!")
                 raise
 
         # Emoji removed deliberately — can raise UnicodeEncodeError on
@@ -173,7 +173,7 @@ def ingest_all():
 if __name__ == "__main__":
     print("=" * 60)
     print("  NYAYA-SETU — Statute PDF Ingestion")
-    print("  Uses Colab /embed endpoint via ngrok")
+    print("  Embeds locally via MiniLM (local_ai_models.py) — no Colab/ngrok required")
     print("=" * 60)
     print()
     ingest_all()

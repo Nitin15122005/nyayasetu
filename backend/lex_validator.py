@@ -225,8 +225,9 @@ class RAGMapping:
     Queries the ChromaDB vector store (built from ipc_bns.pdf + BNS.pdf)
     to find the BNS equivalent of an IPC/CrPC/IEA section.
 
-    Embedding is done via the Colab /embed endpoint (local_models.embed_texts).
-    Falls back gracefully if Colab or ChromaDB is unavailable.
+    Embedding is done locally, in-process (local_models.embed_texts, backed
+    by local_ai_models.py — no network dependency).
+    Falls back gracefully if ChromaDB is unavailable/empty or embedding fails.
     """
 
     def __init__(self):

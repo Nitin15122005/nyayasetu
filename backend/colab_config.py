@@ -1,58 +1,40 @@
 # -*- coding: utf-8 -*-
 """
-colab_config.py — NyayaSetu Colab inference configuration
+colab_config.py — OPTIONAL Colab notebook configuration
 SPIT CSE | Team IKS
 
-Update COLAB_BASE_URL whenever ngrok gives a new URL.
+NOT required to run the production backend. As of this pass, embeddings
+(MiniLM), summarization (BART), and translation (NLLB) all run in-process
+locally — see local_ai_models.py — and no longer call this URL at all.
+
+This file is only read by two legacy, research-only functions in
+local_models.py (classify_document, retrieve_similar) plus check_colab_health(),
+none of which are called by any production route (/api/analyze, /api/qa,
+/api/compliance, /api/translate, etc. all work with the notebook stopped).
+Keep this pointed at a running notebook only if you want to manually
+exercise its MuRIL classifier or its own hybrid FAISS+BM25 retrieval for
+research. Otherwise it can sit stale with no effect on the product.
+
+Update COLAB_BASE_URL whenever ngrok gives a new URL, IF you're using the
+research endpoints above.
 """
 
 # =========================================================
-# ACTIVE COLAB NGROK URL
+# OPTIONAL — only used by research-only Colab client functions
 # =========================================================
 
 COLAB_BASE_URL = "https://nonfebrile-bracingly-amina.ngrok-free.dev"
 
-# =========================================================
-# REQUEST TIMEOUT
-# =========================================================
-
 COLAB_TIMEOUT = 120
 
 
-# =========================================================
-# ENDPOINT HELPER
-# =========================================================
-
 def endpoint(path: str) -> str:
     """
-    Build endpoint URL safely.
+    Build a Colab endpoint URL. Only called by the optional
+    classify_document() / retrieve_similar() / check_colab_health()
+    functions in local_models.py — not on the production inference path.
 
     Example:
-        endpoint("/translate")
+        endpoint("/classify")
     """
     return COLAB_BASE_URL.rstrip("/") + path
-
-
-# =========================================================
-# CORE ENDPOINTS
-# =========================================================
-
-COLAB_HEALTH_URL = endpoint("/health")
-
-COLAB_TRANSLATE_URL = endpoint("/translate")
-
-COLAB_SUMMARIZE_URL = endpoint("/summarize")
-
-COLAB_EMBED_URL = endpoint("/embed")
-
-COLAB_CLASSIFY_URL = endpoint("/classify")
-
-COLAB_RETRIEVE_URL = endpoint("/retrieve")
-
-# NOTE: the notebook (NyayaSetu_Final_Corrected.ipynb) does not currently
-# expose /ner or /keywords — it only serves /health /translate /summarize
-# /embed /classify /retrieve. These two are not called anywhere; kept as
-# placeholders for if/when the notebook adds them, not as live endpoints.
-COLAB_NER_URL = endpoint("/ner")
-
-COLAB_KEYWORDS_URL = endpoint("/keywords")

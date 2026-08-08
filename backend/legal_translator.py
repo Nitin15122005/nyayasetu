@@ -4,8 +4,8 @@ legal_translator.py — Legal Document Translation for Nyaya-Setu
 NyayaSetu | Team IKS | SPIT CSE 2025-26
 
 Translation Priority:
-  1. Colab NLLB model  (via local_models.py HTTP client — no local GPU needed)
-  2. Google Gemini 2.5 Flash  (if Colab/NLLB unavailable, chunked for large docs)
+  1. Local NLLB model  (via local_models.py, in-process on this machine's GPU/CPU)
+  2. Google Gemini 2.5 Flash  (if local NLLB unavailable/unsupported language, chunked for large docs)
   3. Groq Llama 3.3 70B       (final fallback)
 
 Language Detection : Unicode script range → Groq LLM confirmation
@@ -370,7 +370,7 @@ def translate_legal_text(
     Translate an entire legal document.
 
     Priority:
-      1. Colab NLLB (via local_models.translate_chunks_nllb → HTTP)
+      1. Local NLLB (via local_models.translate_chunks_nllb, in-process)
       2. Google Gemini 2.5 Flash
       3. Groq Llama 3.3 70B
 
@@ -418,29 +418,29 @@ def translate_legal_text(
             original_char_count=len(text),
         )
 
-    # ── Step 2: Translate (Colab NLLB → Gemini → Groq) ────────────────────────
+    # ── Step 2: Translate (local NLLB → Gemini → Groq) ────────────────────────
     translated_text, confidence, engine, notes = "", 0.0, "error", ""
 
-    # ── 2a. Try Colab NLLB (fastest, no API cost) ─────────────────────────────
+    # ── 2a. Try local NLLB (fastest, no API cost, no network hop) ─────────────
     from local_models import translate_chunks_nllb, NLLB_LANG_MAP
     if source_lang in NLLB_LANG_MAP and target_lang in NLLB_LANG_MAP:
         try:
-            logger.info("[TRANSLATOR] Using Colab NLLB (%s -> %s)...", src_name, tgt_name)
+            logger.info("[TRANSLATOR] Using local NLLB (%s -> %s)...", src_name, tgt_name)
             translated_text = translate_chunks_nllb(
                 text, src_lang=source_lang, tgt_lang=target_lang
             )
             if translated_text:
                 confidence = 88.0
-                engine     = "nllb-colab"
+                engine     = "nllb-local"
                 notes      = (
-                    f"Translated via Colab NLLB-200 model · "
+                    f"Translated via local NLLB-200 model · "
                     f"{src_name} -> {tgt_name}"
                 )
-                logger.info("[TRANSLATOR] Colab NLLB OK — %d chars", len(translated_text))
+                logger.info("[TRANSLATOR] Local NLLB OK — %d chars", len(translated_text))
             else:
-                logger.warning("[TRANSLATOR] Colab NLLB returned empty — trying Gemini...")
+                logger.warning("[TRANSLATOR] Local NLLB returned empty — trying Gemini...")
         except Exception as nllb_err:
-            logger.warning("[TRANSLATOR] Colab NLLB failed (%s), trying Gemini...", nllb_err)
+            logger.warning("[TRANSLATOR] Local NLLB failed (%s), trying Gemini...", nllb_err)
             translated_text = ""
 
     # ── 2b. Fallback to Gemini ─────────────────────────────────────────────────
@@ -520,7 +520,7 @@ if __name__ == "__main__":
     कलम: भारतीय न्याय संहिता (BNS) कलम ३०४
     """
 
-    print("Testing Colab NLLB → Gemini → Groq translation pipeline...")
+    print("Testing local NLLB -> Gemini -> Groq translation pipeline...")
     result = translate_fir(sample_marathi)
     SEP = "=" * 60
     print(f"\n{SEP}")
