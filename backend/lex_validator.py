@@ -28,19 +28,18 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import fitz  # PyMuPDF
 import numpy as np
-from ai_clients import groq_client as _groq_client, GROQ_MODEL
+from ai_clients import GROQ_MODEL, groq_chat as _shared_groq_chat
 
 logger = logging.getLogger(__name__)
 
 def _groq_chat(prompt: str, temperature: float = 0.1, max_tokens: int = 512) -> str:
-    """Thin helper so we can swap models in one place."""
-    resp = _groq_client.chat.completions.create(
-        model=GROQ_MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=temperature,
-        max_tokens=max_tokens,
-    )
-    return resp.choices[0].message.content.strip()
+    """
+    Routes through ai_clients.groq_chat() — the shared, bounded-concurrency
+    Groq entry point used by every module — so LexValidator calls count
+    against the same GROQ_MAX_CONCURRENCY cap and the same prompt-size safety
+    budget as document_analyzer's calls, instead of firing independently.
+    """
+    return _shared_groq_chat(GROQ_MODEL, prompt, temperature, max_tokens)
 
 # Try to import ChromaDB
 try:
@@ -349,6 +348,21 @@ class RAGMapping:
         return None
 
 
+def _local_context(text: str, act: str, section: str, window: int = 150) -> str:
+    """
+    Small text window around where `section` is mentioned in `text` — used
+    as the (optional, disambiguating) context for the Tier-3 AI mapping
+    fallback. Deliberately NOT the whole document: see the call site in
+    LexValidator.validate() for why that mattered.
+    """
+    m = re.search(re.escape(section), text, re.IGNORECASE)
+    if not m:
+        return text[:window]
+    start = max(0, m.start() - window)
+    end = min(len(text), m.end() + window)
+    return text[start:end]
+
+
 # ============================================================================
 # AI-ENHANCED MAPPING
 # ============================================================================
@@ -360,13 +374,22 @@ class AIEnhancedMapping:
         self.cache = {}
     
     def map_section_with_ai(self, text: str, context: str = "") -> Dict:
-        """Use AI to determine mapping"""
-        
+        """
+        Use AI to determine mapping. `context` must be a small local text
+        window (a few hundred chars around the section reference), not the
+        full document — the IPC->BNS mapping for e.g. "IPC 420" is a fixed
+        legal fact independent of which document cites it, so it never
+        needed document-wide context in the first place. The hard cap below
+        is defense-in-depth: even if a caller passes something larger, this
+        prompt can never blow the model's TPM budget by itself.
+        """
+        context = (context or "")[:400]
+
         # Check cache
         cache_key = hashlib.md5(f"{text}:{context}".encode()).hexdigest()
         if cache_key in self.cache:
             return self.cache[cache_key]
-        
+
         # Use AI for mapping
         prompt = f"""You are a legal expert specializing in Indian criminal law and the transition from IPC to BNS 2023.
 
@@ -461,7 +484,16 @@ class LexValidator:
 
             # If not found and AI is enabled
             if mapping.get("bns") == "UNKNOWN" and use_ai:
-                ai_mapping = self.ai_mapper.map_section_with_ai(key, text)
+                # Only the text immediately around this reference — NOT the
+                # whole document. This used to pass `text` (the entire
+                # document, up to ~90K+ chars) as the AI prompt's context,
+                # which is how a single mapping lookup ended up sending
+                # ~28K tokens to Groq and tripping the model's TPM limit.
+                # The mapping itself is a static legal fact (IPC X -> BNS Y);
+                # a small local window is only there to disambiguate
+                # subsections, not to re-explain the whole document.
+                local_context = _local_context(text, act, section)
+                ai_mapping = self.ai_mapper.map_section_with_ai(key, local_context)
                 if ai_mapping.get("bns") != "UNKNOWN":
                     mapping = ai_mapping
 

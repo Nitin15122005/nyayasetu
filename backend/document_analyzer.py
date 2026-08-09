@@ -31,15 +31,23 @@ import fitz          # PyMuPDF
 from pydantic import BaseModel
 from gpu_utils import DEVICE
 from legal_translator import detect_language_with_llm, translate_legal_text
-from ai_clients import groq_client, GROQ_MODEL
+from ai_clients import groq_client, GROQ_MODEL, groq_chat as _shared_groq_chat
 from urllib.parse import quote
 import base64
+import threading
 
 logger = logging.getLogger(__name__)
 
 _EXECUTOR = ThreadPoolExecutor(max_workers=12)
 
 INDIANKANOON_API_KEY = os.getenv("INDIANKANOON_API_KEY", "")
+
+# Circuit breaker: once IndianKanoon rejects our credentials (401), the key
+# isn't going to become valid again mid-process, so stop calling it instead
+# of re-attempting (and re-timing-out) on every subsequent document — see
+# fetch_case_laws() below.
+_kanoon_disabled_reason: Optional[str] = None
+_kanoon_lock = threading.Lock()
 
 
 # ─────────────────────────────────────────────────────────────
@@ -274,7 +282,7 @@ def extract_text_with_vision(image_bytes: bytes) -> str:
     try:
         base64_image = base64.b64encode(image_bytes).decode('utf-8')
         completion = groq_client.chat.completions.create(
-            model="llama-3.2-90b-vision-preview",
+            model=GROQ_MODEL,
             messages=[{
                 "role": "user",
                 "content": [
@@ -374,35 +382,25 @@ def detect_document_type(text: str) -> tuple[str, str, int]:
 
 GROQ_FAST_MODEL = os.getenv("GROQ_FAST_MODEL", "llama-3.1-8b-instant")
 
-import time as _time
 
 def _groq_call(model: str, prompt: str, temperature: float, max_tokens: int) -> str:
-    for attempt in range(4):
-        try:
-            resp = groq_client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
-            return resp.choices[0].message.content.strip()
-        except Exception as e:
-            msg = str(e)
-            if "429" in msg or "rate_limit" in msg.lower():
-                wait = 3 * (attempt + 1)
-                logger.warning("[LLM] Rate limit hit. Waiting %ds (attempt %d/4)...", wait, attempt + 1)
-                _time.sleep(wait)
-            else:
-                raise
-    raise RuntimeError("Groq rate limit: exceeded max retries")
+    """
+    Thin pass-through to the shared, bounded-concurrency Groq client
+    (ai_clients.groq_chat). Retry/backoff for 429/409/5xx and Retry-After
+    handling now live in exactly one place: the groq-python SDK client
+    constructed in ai_clients.py (GROQ_SDK_MAX_RETRIES). This function used
+    to run its own second retry loop on top of that, which under 12-way
+    concurrency stacked into a retry storm instead of preventing one.
+    """
+    return _shared_groq_chat(model, prompt, temperature, max_tokens)
 
 
 def call_llm(prompt: str, temperature: float = 0.1) -> str:
     return _groq_call(GROQ_MODEL, prompt, temperature, max_tokens=3000)
 
 
-def call_llm_fast(prompt: str, temperature: float = 0.1) -> str:
-    return _groq_call(GROQ_FAST_MODEL, prompt, temperature, max_tokens=1500)
+def call_llm_fast(prompt: str, temperature: float = 0.1, max_tokens: int = 1500) -> str:
+    return _groq_call(GROQ_FAST_MODEL, prompt, temperature, max_tokens=max_tokens)
 
 
 def parse_json_response(raw: str, fallback):
@@ -429,22 +427,38 @@ def compute_confidence(context: str, answer: str) -> float:
 # ─────────────────────────────────────────────────────────────
 # Clause risk scoring
 # ─────────────────────────────────────────────────────────────
-def analyze_clause(clause: str, doc_type: str) -> ClauseAnalysis:
+CLAUSE_BATCH_SIZE = int(os.getenv("CLAUSE_BATCH_SIZE", "5"))
+
+
+def analyze_clauses_batch(clauses: list[str], doc_type: str) -> list[ClauseAnalysis]:
+    """
+    Analyze up to CLAUSE_BATCH_SIZE clauses in a single Groq call instead of
+    one call per clause. A 15-clause document used to fire 15 separate
+    concurrent Groq requests (analyze_clause x15 via the executor) — the
+    single biggest source of the reported 429 burst. Batching cuts that to
+    ceil(15 / CLAUSE_BATCH_SIZE) = 3 requests, each still small (a handful of
+    ~500-char clauses), well under the per-prompt token budget.
+    """
+    numbered = "\n\n".join(f"[{i}] {c[:500]}" for i, c in enumerate(clauses))
     prompt = f"""You are an Indian legal expert reviewing a {doc_type}.
-Analyze this clause and respond ONLY with a valid JSON object — no other text.
+Analyze EACH numbered clause below independently and respond ONLY with a valid JSON array — no other text.
+Return exactly one object per clause, in the same order, tagged with its index.
 
-CLAUSE:
-{clause[:500]}
+CLAUSES:
+{numbered}
 
-JSON format:
-{{
-  "risk_level": "Safe" or "Caution" or "High Risk" or "Illegal",
-  "risk_score": 0.0 to 1.0,
-  "explanation": "one plain-English sentence explaining why",
-  "confidence": 0.0 to 1.0,
-  "suggestion": "one sentence on what the user should do",
-  "safer_version": "if risk_level is High Risk or Illegal, write a fairer rewrite. Otherwise null."
-}}
+JSON format — array of objects, one per clause:
+[
+  {{
+    "index": 0,
+    "risk_level": "Safe" or "Caution" or "High Risk" or "Illegal",
+    "risk_score": 0.0 to 1.0,
+    "explanation": "one plain-English sentence explaining why",
+    "confidence": 0.0 to 1.0,
+    "suggestion": "one sentence on what the user should do",
+    "safer_version": "if risk_level is High Risk or Illegal, write a fairer rewrite. Otherwise null."
+  }}
+]
 
 Risk guide:
 - Safe: standard, fair language
@@ -452,17 +466,29 @@ Risk guide:
 - High Risk: significantly unfair, likely challengeable in court
 - Illegal: violates Indian law (Consumer Protection Act, Contract Act, BNS 2023, labour laws)"""
 
-    raw  = call_llm_fast(prompt)
-    data = parse_json_response(raw, {})
-    return ClauseAnalysis(
-        clause_text=clause[:300],
-        risk_level=data.get("risk_level", "Caution"),
-        risk_score=float(data.get("risk_score", 0.5)),
-        explanation=data.get("explanation", "Could not parse this clause automatically."),
-        confidence=float(data.get("confidence", 0.5)),
-        suggestion=data.get("suggestion", "Review with a lawyer."),
-        safer_version=data.get("safer_version") or None,
-    )
+    raw = call_llm_fast(prompt, max_tokens=min(4000, 350 * len(clauses) + 400))
+    data = parse_json_response(raw, [])
+    by_index = {}
+    if isinstance(data, list):
+        for item in data:
+            try:
+                by_index[int(item.get("index", -1))] = item
+            except (TypeError, ValueError):
+                continue
+
+    results = []
+    for i, clause in enumerate(clauses):
+        item = by_index.get(i, {})
+        results.append(ClauseAnalysis(
+            clause_text=clause[:300],
+            risk_level=item.get("risk_level", "Caution"),
+            risk_score=float(item.get("risk_score", 0.5)),
+            explanation=item.get("explanation", "Could not parse this clause automatically."),
+            confidence=float(item.get("confidence", 0.5)),
+            suggestion=item.get("suggestion", "Review with a lawyer."),
+            safer_version=item.get("safer_version") or None,
+        ))
+    return results
 
 
 # ─────────────────────────────────────────────────────────────
@@ -774,14 +800,28 @@ def explain_legal_sections(sections: list[str], doc_type: str) -> list[dict]:
 # ─────────────────────────────────────────────────────────────
 # IndianKanoon
 # ─────────────────────────────────────────────────────────────
+def _kanoon_unavailable(reason: str) -> list[dict]:
+    return [{
+        "title":   "IndianKanoon unavailable",
+        "summary": reason,
+        "url":     "https://indiankanoon.org",
+        "court":   "", "year": "", "related_section": None,
+    }]
+
+
 def fetch_case_laws(query: str, doc_type: str, sections: list[str] = None, pagenum: int = 0) -> list[dict]:
+    global _kanoon_disabled_reason
+
     if not INDIANKANOON_API_KEY:
-        return [{
-            "title":   "IndianKanoon API key not configured",
-            "summary": "Add INDIANKANOON_API_KEY to your .env file.",
-            "url":     "https://indiankanoon.org",
-            "court":   "", "year": "", "related_section": None,
-        }]
+        return _kanoon_unavailable("Add INDIANKANOON_API_KEY to your .env file.")
+
+    # Circuit breaker: an invalid/expired key returns 401 on every call, and
+    # a 401 for one query means the credential itself is bad — retrying it
+    # for the next 5 section queries plus the keyword query (up to 6 network
+    # round-trips, 15s timeout each) is pure wasted latency, not resilience.
+    # Fail fast for the rest of this process instead.
+    if _kanoon_disabled_reason:
+        return _kanoon_unavailable(_kanoon_disabled_reason)
 
     queries: list[str] = []
     if sections:
@@ -801,6 +841,14 @@ def fetch_case_laws(query: str, doc_type: str, sections: list[str] = None, pagen
                          "Content-Type": "application/x-www-form-urlencoded"},
                 timeout=15,
             )
+            if r.status_code == 401:
+                with _kanoon_lock:
+                    _kanoon_disabled_reason = (
+                        "IndianKanoon rejected INDIANKANOON_API_KEY (401 Unauthorized). "
+                        "Disabled for the rest of this process — check/rotate the key."
+                    )
+                logger.error("[KANOON] 401 Unauthorized for '%s' — disabling further IndianKanoon calls this session.", search_q[:60])
+                break
             r.raise_for_status()
             docs = r.json().get("docs", [])
             for doc in docs:
@@ -822,7 +870,7 @@ def fetch_case_laws(query: str, doc_type: str, sections: list[str] = None, pagen
                     break
         except Exception as e:
             logger.warning("[KANOON] Error for '%s': %s", search_q[:60], e)
-    return results
+    return results or (_kanoon_unavailable(_kanoon_disabled_reason) if _kanoon_disabled_reason else results)
 
 
 def fetch_acts(
@@ -1041,9 +1089,15 @@ def analyze_document(
     # ── Phase 2: All analysis tasks submitted simultaneously ──────────────────
     all_clauses = segment_clauses(working_text)
     clauses     = all_clauses[:max_clauses]
-    logger.info("[ANALYZER|P2] Submitting %d clause tasks + 6 doc-level tasks...", len(clauses))
+    clause_batches = [
+        clauses[i:i + CLAUSE_BATCH_SIZE] for i in range(0, len(clauses), CLAUSE_BATCH_SIZE)
+    ]
+    logger.info(
+        "[ANALYZER|P2] Submitting %d clauses as %d batched Groq call(s) (batch size %d) + 6 doc-level tasks...",
+        len(clauses), len(clause_batches), CLAUSE_BATCH_SIZE,
+    )
 
-    clause_futs  = [_EXECUTOR.submit(analyze_clause, c, doc_type) for c in clauses]
+    clause_futs  = [_EXECUTOR.submit(analyze_clauses_batch, batch, doc_type) for batch in clause_batches]
     f_summary    = _EXECUTOR.submit(summarize_document, working_text, doc_type)
     f_party      = _EXECUTOR.submit(extract_party_obligations, working_text, doc_type)
     f_missing    = _EXECUTOR.submit(detect_missing_clauses, working_text, type_key)
@@ -1063,9 +1117,9 @@ def analyze_document(
     analyzed: list[ClauseAnalysis] = []
     for f in clause_futs:
         try:
-            analyzed.append(f.result())
+            analyzed.extend(f.result())
         except Exception as e:
-            logger.warning("[ANALYZER|P2] Clause task failed: %s", e)
+            logger.warning("[ANALYZER|P2] Clause batch task failed: %s", e)
 
     risky    = [c for c in analyzed if c.risk_level in ["High Risk", "Illegal"]]
     kw_src   = risky or [c for c in analyzed if c.risk_level == "Caution"]
